@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../common_widgets/carosel/horizonal_carosel.dart';
+import '../../../common_widgets/doctors/doctor_horizontal_list.dart';
 import '../../../common_widgets/navigation_bar/nav_bar.dart';
+import '../../../common_widgets/urgent_care/urgent_care_banner.dart';
+import '../../urgent_care/urgentCare.dart';
 
 class PatientDashboardView extends StatefulWidget {
   const PatientDashboardView({super.key});
@@ -69,6 +72,25 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
             child: _buildSearchBar(),
           ),
 
+          const SizedBox(height: 16.0),
+
+          // -------------------------------------------------------------
+          // URGENT CARE BANNER
+          // -------------------------------------------------------------
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: UrgentCareBanner(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const UrgentCareScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+
           const SizedBox(height: 20.0),
 
           // -------------------------------------------------------------
@@ -100,6 +122,13 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
           ),
           const SizedBox(height: 12.0),
           const HorizontalCarouselWidget(),
+
+          const SizedBox(height: 24.0),
+
+          // -------------------------------------------------------------
+          // AVAILABLE DOCTORS HORIZONTAL LIST
+          // -------------------------------------------------------------
+          const DoctorHorizontalList(title: 'Obstetrics & Gynecology'),
 
           const SizedBox(height: 24.0),
 
@@ -347,43 +376,43 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
   Widget _buildQuickActionsGrid() {
     final actions = [
       {
-        'title': 'Tele-Consult',
-        'subtitle': 'Doctor Video/Audio',
-        'icon': Icons.video_call_rounded,
+        'title': 'Cardiology',
+        //'subtitle': 'Doctor Video/Audio',
+        'icon': Icons.monitor_heart_rounded,
         'color': const Color(0xFF0072FF),
         'bg': const Color(0xFFEFF6FF),
       },
       {
-        'title': 'Health Vault',
-        'subtitle': 'Offline Records',
-        'icon': Icons.folder_shared_rounded,
+        'title': 'General Physician',
+       // 'subtitle': 'Offline Records',
+        'icon': Icons.health_and_safety_outlined,
         'color': const Color(0xFF10B981),
         'bg': const Color(0xFFECFDF5),
       },
       {
-        'title': 'Prescriptions',
-        'subtitle': 'Meds & Dosage',
+        'title': 'Clinical Psychology',
+        //'subtitle': 'Meds & Dosage',
         'icon': Icons.medication_rounded,
         'color': const Color(0xFF8B5CF6),
         'bg': const Color(0xFFF5F3FF),
       },
       {
-        'title': 'Symptom Check',
-        'subtitle': 'AI Assistance',
+        'title': 'Psychiatry',
+       // 'subtitle': 'AI Assistance',
         'icon': Icons.health_and_safety_rounded,
         'color': const Color(0xFFF59E0B),
         'bg': const Color(0xFFFFFBEB),
       },
       {
-        'title': 'Emergency 102',
-        'subtitle': 'Ambulance Helpline',
+        'title': 'Gastroenterology',
+       // 'subtitle': 'Ambulance Helpline',
         'icon': Icons.emergency_rounded,
         'color': const Color(0xFFEF4444),
         'bg': const Color(0xFFFEF2F2),
       },
       {
-        'title': 'Vitals Tracker',
-        'subtitle': 'BP, Pulse, Temp',
+        'title': 'Licensed Dietician',
+        //'subtitle': 'BP, Pulse, Temp',
         'icon': Icons.monitor_heart_rounded,
         'color': const Color(0xFF06B6D4),
         'bg': const Color(0xFFECFEFF),
@@ -445,17 +474,19 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2.0),
-                Text(
-                  item['subtitle'] as String,
-                  style: const TextStyle(
-                    fontSize: 9.5,
-                    color: Color(0xFF64748B),
+                if (item['subtitle'] != null) ...[
+                  const SizedBox(height: 2.0),
+                  Text(
+                    item['subtitle'] as String,
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      color: Color(0xFF64748B),
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                ],
               ],
             ),
           ),
