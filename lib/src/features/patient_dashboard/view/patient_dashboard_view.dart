@@ -4,6 +4,7 @@ import '../../../common_widgets/doctors/doctor_horizontal_list.dart';
 import '../../../common_widgets/navigation_bar/nav_bar.dart';
 import '../../../common_widgets/urgent_care/urgent_care_banner.dart';
 import '../../urgent_care/urgentCare.dart';
+import '../../consultation/view/consultation_view.dart';
 
 class PatientDashboardView extends StatefulWidget {
   const PatientDashboardView({super.key});
@@ -29,8 +30,8 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
             // Services Tab Placeholder
             _buildTabPlaceholder('Services & Specialties', Icons.medical_services_outlined),
 
-            // Consultations Tab Placeholder
-            _buildTabPlaceholder('Tele-Consultations', Icons.video_camera_front_outlined),
+            // Consultations Tab
+            const ConsultationView(),
 
             // Health Records Tab Placeholder
             _buildTabPlaceholder('Offline Medical Records', Icons.folder_shared_outlined),

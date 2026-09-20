@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'src/features/patient_dashboard/view/patient_dashboard_view.dart';
+import 'src/features/auth/view/welcome_view.dart';
 
 void main() {
   runApp(const SwasthyaSathiApp());
@@ -19,7 +19,7 @@ class SwasthyaSathiApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF4F7FB),
         fontFamily: 'Roboto',
       ),
-      home: const PatientDashboardView(),
+      home: const WelcomeView(),
     );
   }
 }
