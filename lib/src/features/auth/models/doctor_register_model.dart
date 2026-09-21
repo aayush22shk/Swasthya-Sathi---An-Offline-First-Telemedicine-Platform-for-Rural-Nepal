@@ -2,8 +2,9 @@ class DoctorRegisterModel {
   final String firstName;
   final String lastName;
   final String nmcNumber; // Nepal Medical Council registration number
-  final String specialty;
-  final String hospitalAffiliation;
+  final int experienceYears;
+  final double consultationFee;
+  final String? bio;
   final String countryCode;
   final String mobileNumber;
   final String email;
@@ -15,8 +16,9 @@ class DoctorRegisterModel {
     required this.firstName,
     required this.lastName,
     required this.nmcNumber,
-    required this.specialty,
-    required this.hospitalAffiliation,
+    this.experienceYears = 0,
+    this.consultationFee = 0.0,
+    this.bio,
     this.countryCode = '+977',
     required this.mobileNumber,
     required this.email,
@@ -30,22 +32,21 @@ class DoctorRegisterModel {
 
   Map<String, dynamic> toJson() {
     return {
-      'firstName': firstName,
-      'lastName': lastName,
-      'nmcNumber': nmcNumber,
-      'specialty': specialty,
-      'hospitalAffiliation': hospitalAffiliation,
-      'countryCode': countryCode,
-      'mobileNumber': mobileNumber,
-      'email': email,
+      'full_name': fullName,
+      'nmc_registration_number': nmcNumber,
+      'experience_years': experienceYears,
+      'consultation_fee': consultationFee,
+      'bio': bio,
+      'phone': fullPhoneNumber,
+      'email': email.isNotEmpty ? email : null,
+      'password': password,
       'role': 'doctor',
-      'agreedToTerms': agreedToTerms,
       'registeredAt': registeredAt.toIso8601String(),
     };
   }
 
   @override
   String toString() {
-    return 'DoctorRegisterModel(name: $fullName, nmc: $nmcNumber, specialty: $specialty)';
+    return 'DoctorRegisterModel(name: $fullName, nmc: $nmcNumber, exp: $experienceYears yrs, fee: NPR $consultationFee)';
   }
 }

@@ -3,6 +3,7 @@ import '../models/patient_register_model.dart';
 import 'widgets/auth_text_field.dart';
 import '../../patient_dashboard/view/patient_dashboard_view.dart';
 import 'login_view.dart';
+import '../../../services/auth_service.dart';
 
 class RegisterPatientView extends StatefulWidget {
   const RegisterPatientView({super.key});
@@ -14,40 +15,42 @@ class RegisterPatientView extends StatefulWidget {
 class _RegisterPatientViewState extends State<RegisterPatientView> {
   final _formKey = GlobalKey<FormState>();
 
-  final _firstNameController = TextEditingController(text: 'Aayush');
-  final _lastNameController = TextEditingController(text: 'Shakya');
-  final _mobileController = TextEditingController(text: '9749869506');
-  final _emailController = TextEditingController(text: 'aayush.shakya04@gmail.com');
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _mobileController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _dobController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
 
   String _countryCode = '+977';
-  String _howDidYouHear = 'Prefer not to say';
-  String? _selectedReference;
+  String? _selectedGender;
+  String? _selectedBloodGroup;
+  DateTime? _selectedDob;
   bool _agreedToTerms = true;
   bool _obscurePassword = true;
   bool _isLoading = false;
 
-  final List<String> _hearOptions = [
-    'Prefer not to say',
-    'Friends or Family',
-    'Social Media (Facebook / Instagram)',
-    'Community Health Post / FCHV',
-    'Hospital or Clinic Banner',
-    'Internet Search / Google',
+  final List<Map<String, String>> _genderOptions = [
+    {'label': 'Male', 'value': 'male'},
+    {'label': 'Female', 'value': 'female'},
+    {'label': 'Other', 'value': 'other'},
   ];
 
-  final List<String> _referenceOptions = [
-    'None',
-    'FCHV (Female Community Health Volunteer)',
-    'Local Rural Health Post',
-    'Attending Doctor Code',
-    'Red Cross Nepal Health Camp',
+  final List<String> _bloodGroupOptions = [
+    'A+',
+    'A-',
+    'B+',
+    'B-',
+    'AB+',
+    'AB-',
+    'O+',
+    'O-',
   ];
 
   bool get _isMobileValid => _mobileController.text.trim().length >= 10;
   bool get _isEmailValid {
     final email = _emailController.text.trim();
+    if (email.isEmpty) return true; // Optional in DB
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
   }
 
@@ -57,9 +60,43 @@ class _RegisterPatientViewState extends State<RegisterPatientView> {
     _lastNameController.dispose();
     _mobileController.dispose();
     _emailController.dispose();
+    _dobController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickDateOfBirth() async {
+    final now = DateTime.now();
+    final initialDate = _selectedDob ?? DateTime(now.year - 25, now.month, now.day);
+    final firstDate = DateTime(1900);
+    final lastDate = now;
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF0072FF),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF1E293B),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDob = picked;
+        _dobController.text =
+            '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+      });
+    }
   }
 
   void _showCountryCodePicker() {
@@ -116,9 +153,7 @@ class _RegisterPatientViewState extends State<RegisterPatientView> {
   }
 
   Future<void> _submitRegistration() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     if (!_agreedToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -131,26 +166,67 @@ class _RegisterPatientViewState extends State<RegisterPatientView> {
     }
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 700));
-    if (!mounted) return;
-    setState(() => _isLoading = false);
 
-    // Create the patient registration object
     final patientModel = PatientRegisterModel(
       firstName: _firstNameController.text.trim(),
       lastName: _lastNameController.text.trim(),
       countryCode: _countryCode,
       mobileNumber: _mobileController.text.trim(),
       email: _emailController.text.trim(),
-      howDidYouHear: _howDidYouHear,
-      reference: _selectedReference,
-      password: _passwordController.text.isNotEmpty
-          ? _passwordController.text
-          : 'demo_password',
+      gender: _selectedGender,
+      dob: _selectedDob,
+      bloodGroup: _selectedBloodGroup,
+      password: _passwordController.text,
       agreedToTerms: _agreedToTerms,
     );
 
-    _showRegistrationSuccessDialog(patientModel);
+    try {
+      // ── API call to DB ────────────────────────────────────────────────
+      final payload = <String, dynamic>{
+        'full_name': patientModel.fullName,
+        'phone': patientModel.fullPhoneNumber,
+        'password': patientModel.password,
+      };
+
+      if (patientModel.email.isNotEmpty) {
+        payload['email'] = patientModel.email;
+      }
+      if (patientModel.gender != null) {
+        payload['gender'] = patientModel.gender;
+      }
+      if (patientModel.formattedDob != null) {
+        payload['dob'] = patientModel.formattedDob;
+      }
+      if (patientModel.bloodGroup != null) {
+        payload['blood_group'] = patientModel.bloodGroup;
+      }
+
+      await AuthService().registerPatient(payload);
+      // ──────────────────────────────────────────────────────────────────
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showRegistrationSuccessDialog(patientModel);
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded,
+                  color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(child: Text(e.message)),
+            ],
+          ),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   void _showRegistrationSuccessDialog(PatientRegisterModel model) {
@@ -188,7 +264,7 @@ class _RegisterPatientViewState extends State<RegisterPatientView> {
             ),
             const SizedBox(height: 10),
             Text(
-              'Welcome, ${model.fullName}! Your patient account is verified and ready for tele-consultations.',
+              'Welcome, ${model.fullName}! Your patient account is registered and ready for tele-consultations.',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 13.5,
@@ -207,10 +283,22 @@ class _RegisterPatientViewState extends State<RegisterPatientView> {
               child: Column(
                 children: [
                   _detailRow('Phone:', model.fullPhoneNumber),
-                  const SizedBox(height: 6),
-                  _detailRow('Email:', model.email),
-                  const SizedBox(height: 6),
-                  _detailRow('Role:', 'Patient (Swasthya Sathi)'),
+                  if (model.email.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    _detailRow('Email:', model.email),
+                  ],
+                  if (model.gender != null) ...[
+                    const SizedBox(height: 6),
+                    _detailRow('Gender:', model.gender!.toUpperCase()),
+                  ],
+                  if (model.formattedDob != null) ...[
+                    const SizedBox(height: 6),
+                    _detailRow('DOB:', model.formattedDob!),
+                  ],
+                  if (model.bloodGroup != null) ...[
+                    const SizedBox(height: 6),
+                    _detailRow('Blood Group:', model.bloodGroup!),
+                  ],
                 ],
               ),
             ),
@@ -302,27 +390,33 @@ class _RegisterPatientViewState extends State<RegisterPatientView> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             physics: const BouncingScrollPhysics(),
             children: [
-              // First Name
-              AuthTextField(
-                label: 'First Name',
-                hint: 'e.g. Aayush',
-                controller: _firstNameController,
-                validator: (val) =>
-                    val == null || val.trim().isEmpty ? 'First name is required' : null,
+              // First Name & Last Name (full_name in DB)
+              Row(
+                children: [
+                  Expanded(
+                    child: AuthTextField(
+                      label: 'First Name',
+                      hint: 'e.g. Aayush',
+                      controller: _firstNameController,
+                      validator: (val) =>
+                          val == null || val.trim().isEmpty ? 'Required' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: AuthTextField(
+                      label: 'Last Name',
+                      hint: 'e.g. Shakya',
+                      controller: _lastNameController,
+                      validator: (val) =>
+                          val == null || val.trim().isEmpty ? 'Required' : null,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 18),
 
-              // Last Name
-              AuthTextField(
-                label: 'Last Name',
-                hint: 'e.g. Shakya',
-                controller: _lastNameController,
-                validator: (val) =>
-                    val == null || val.trim().isEmpty ? 'Last name is required' : null,
-              ),
-              const SizedBox(height: 18),
-
-              // Mobile Number with +977 prefix and checkmark
+              // Mobile Number with +977 prefix (phone in DB)
               PhoneInputField(
                 label: 'Mobile Number',
                 controller: _mobileController,
@@ -333,20 +427,17 @@ class _RegisterPatientViewState extends State<RegisterPatientView> {
               ),
               const SizedBox(height: 18),
 
-              // Email with checkmark
+              // Email (optional in DB, validated if provided)
               AuthTextField(
-                label: 'Email',
+                label: 'Email (Optional)',
                 hint: 'name@example.com',
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
-                showValidation: true,
+                showValidation: _emailController.text.trim().isNotEmpty,
                 isValid: _isEmailValid,
                 onChanged: (_) => setState(() {}),
                 validator: (val) {
-                  if (val == null || val.trim().isEmpty) {
-                    return 'Email is required';
-                  }
-                  if (!_isEmailValid) {
+                  if (val != null && val.trim().isNotEmpty && !_isEmailValid) {
                     return 'Enter a valid email address';
                   }
                   return null;
@@ -354,74 +445,93 @@ class _RegisterPatientViewState extends State<RegisterPatientView> {
               ),
               const SizedBox(height: 18),
 
-              // How did you hear about us?
-              AuthDropdownField<String>(
-                label: 'How did you hear about us?',
-                value: _howDidYouHear,
-                hint: 'Select option',
-                items: _hearOptions
-                    .map(
-                      (opt) => DropdownMenuItem(
-                        value: opt,
-                        child: Text(
-                          opt,
-                          style: const TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF1E293B),
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() => _howDidYouHear = val);
-                  }
-                },
+              // Date of Birth (dob DATE in DB)
+              AuthTextField(
+                label: 'Date of Birth (Optional)',
+                hint: 'YYYY-MM-DD',
+                controller: _dobController,
+                readOnly: true,
+                onTap: _pickDateOfBirth,
+                suffix: IconButton(
+                  icon: const Icon(
+                    Icons.calendar_today_rounded,
+                    color: Color(0xFF0072FF),
+                    size: 20,
+                  ),
+                  onPressed: _pickDateOfBirth,
+                ),
               ),
               const SizedBox(height: 18),
 
-              // Reference (If applicable) with Info tooltip
-              AuthDropdownField<String>(
-                label: 'Reference',
-                labelTrailing: Tooltip(
-                  message: 'Provide referral if suggested by a health worker or post.',
-                  child: Icon(
-                    Icons.info_outline_rounded,
-                    size: 16,
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.9),
+              // Gender & Blood Group (gender_type & blood_group in DB)
+              Row(
+                children: [
+                  // Gender
+                  Expanded(
+                    child: AuthDropdownField<String>(
+                      label: 'Gender',
+                      value: _selectedGender,
+                      hint: 'Select',
+                      items: _genderOptions
+                          .map(
+                            (opt) => DropdownMenuItem(
+                              value: opt['value'],
+                              child: Text(
+                                opt['label']!,
+                                style: const TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF1E293B),
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (val) => setState(() => _selectedGender = val),
+                    ),
                   ),
-                ),
-                value: _selectedReference,
-                hint: 'Select reference (optional)',
-                items: _referenceOptions
-                    .map(
-                      (opt) => DropdownMenuItem(
-                        value: opt,
-                        child: Text(
-                          opt,
-                          style: const TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF1E293B),
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (val) {
-                  setState(() => _selectedReference = val);
-                },
+                  const SizedBox(width: 12),
+                  // Blood Group
+                  Expanded(
+                    child: AuthDropdownField<String>(
+                      label: 'Blood Group',
+                      value: _selectedBloodGroup,
+                      hint: 'Select',
+                      items: _bloodGroupOptions
+                          .map(
+                            (opt) => DropdownMenuItem(
+                              value: opt,
+                              child: Text(
+                                opt,
+                                style: const TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF1E293B),
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (val) =>
+                          setState(() => _selectedBloodGroup = val),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 18),
 
               // Password
               AuthTextField(
                 label: 'Password',
-                hint: 'Create a secure password',
+                hint: 'At least 8 characters',
                 controller: _passwordController,
                 obscureText: _obscurePassword,
+                validator: (val) {
+                  if (val == null || val.length < 8) {
+                    return 'Password must be at least 8 characters';
+                  }
+                  return null;
+                },
                 suffix: IconButton(
                   icon: Icon(
                     _obscurePassword
@@ -471,7 +581,7 @@ class _RegisterPatientViewState extends State<RegisterPatientView> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                  'Swasthya Sathi Telemedicine Terms & Privacy Policy (Nepal Medical Standards)',
+                                  'Swasthya Sathi Telemedicine Terms & Privacy Policy',
                                 ),
                               ),
                             );
@@ -491,11 +601,11 @@ class _RegisterPatientViewState extends State<RegisterPatientView> {
                 ],
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 28),
 
               // Next Button (Orange / Amber gradient)
               AuthPrimaryButton(
-                label: 'Next',
+                label: 'Create Patient Account',
                 isLoading: _isLoading,
                 onPressed: _submitRegistration,
               ),

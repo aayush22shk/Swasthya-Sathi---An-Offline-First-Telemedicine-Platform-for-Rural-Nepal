@@ -3,6 +3,7 @@ import '../models/user_role.dart';
 import 'widgets/auth_text_field.dart';
 import 'role_selection_view.dart';
 import '../../patient_dashboard/view/patient_dashboard_view.dart';
+import '../../../services/auth_service.dart';
 
 class LoginView extends StatefulWidget {
   final UserRole initialRole;
@@ -20,8 +21,8 @@ class _LoginViewState extends State<LoginView> {
   final _formKey = GlobalKey<FormState>();
 
   late UserRole _selectedRole;
-  final _identifierController = TextEditingController(text: '9749869506');
-  final _passwordController = TextEditingController(text: 'pass1234');
+  final _identifierController = TextEditingController();
+  final _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
   bool _rememberMe = true;
@@ -43,11 +44,7 @@ class _LoginViewState extends State<LoginView> {
   void _onRoleChanged(UserRole role) {
     setState(() {
       _selectedRole = role;
-      if (role == UserRole.patient) {
-        _identifierController.text = '9749869506';
-      } else {
-        _identifierController.text = 'dr.ramesh@teaching.org.np';
-      }
+      _identifierController.clear();
     });
   }
 
@@ -55,32 +52,71 @@ class _LoginViewState extends State<LoginView> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 700));
-    if (!mounted) return;
-    setState(() => _isLoading = false);
 
-    // Navigate to Patient Dashboard
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const PatientDashboardView(),
-      ),
-      (route) => false,
-    );
+    try {
+      // ── Real API call ────────────────────────────────────────────────
+      final user = await AuthService().login(
+        identifier: _identifierController.text.trim(),
+        password:   _passwordController.text,
+      );
+      // ──────────────────────────────────────────────────────────────────
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            Text('Logged in as ${_selectedRole.displayName}!'),
-          ],
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      // Show success snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded,
+                  color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text('Welcome back, ${user.fullName ?? user.phone}!'),
+            ],
+          ),
+          backgroundColor: const Color(0xFF10B981),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
         ),
-        backgroundColor: const Color(0xFF10B981),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+      );
+
+      // Role-based navigation
+      if (user.isDoctor) {
+        // TODO: replace with DoctorDashboardView when it is ready
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const PatientDashboardView()),
+          (route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const PatientDashboardView()),
+          (route) => false,
+        );
+      }
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded,
+                  color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(child: Text(e.message)),
+            ],
+          ),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   @override
@@ -276,13 +312,13 @@ class _LoginViewState extends State<LoginView> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(
-                          Icons.touch_app_outlined,
+                          Icons.lock_outline_rounded,
                           size: 16,
                           color: Color(0xFF64748B),
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'Demo mode ready • Tap Log In to enter',
+                          'Secured by JWT • Data encrypted in transit',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade700,

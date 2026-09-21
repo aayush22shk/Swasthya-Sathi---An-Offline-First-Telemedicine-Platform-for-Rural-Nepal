@@ -3,6 +3,7 @@ import '../models/doctor_register_model.dart';
 import 'widgets/auth_text_field.dart';
 import '../../patient_dashboard/view/patient_dashboard_view.dart';
 import 'login_view.dart';
+import '../../../services/auth_service.dart';
 
 class RegisterDoctorView extends StatefulWidget {
   final bool isSpecialist;
@@ -22,33 +23,22 @@ class _RegisterDoctorViewState extends State<RegisterDoctorView> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _nmcNumberController = TextEditingController();
-  final _hospitalController = TextEditingController();
+  final _experienceController = TextEditingController();
+  final _feeController = TextEditingController();
+  final _bioController = TextEditingController();
   final _mobileController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   String _countryCode = '+977';
-  String _selectedSpecialty = 'General Medicine';
   bool _agreedToTerms = true;
   bool _obscurePassword = true;
   bool _isLoading = false;
 
-  final List<String> _specialties = [
-    'General Medicine',
-    'Pediatrics (Child Health)',
-    'Cardiology (Heart)',
-    'Gynecology & Obstetrics',
-    'Orthopedics & Traumatology',
-    'Dermatology (Skin & Hair)',
-    'Psychiatry & Mental Health',
-    'ENT (Ear, Nose, Throat)',
-    'Neurology',
-    'Emergency & Critical Care',
-  ];
-
   bool get _isMobileValid => _mobileController.text.trim().length >= 10;
   bool get _isEmailValid {
     final email = _emailController.text.trim();
+    if (email.isEmpty) return true; // Optional in DB
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
   }
 
@@ -57,7 +47,9 @@ class _RegisterDoctorViewState extends State<RegisterDoctorView> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _nmcNumberController.dispose();
-    _hospitalController.dispose();
+    _experienceController.dispose();
+    _feeController.dispose();
+    _bioController.dispose();
     _mobileController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -118,9 +110,7 @@ class _RegisterDoctorViewState extends State<RegisterDoctorView> {
   }
 
   Future<void> _submitRegistration() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     if (!_agreedToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -133,26 +123,69 @@ class _RegisterDoctorViewState extends State<RegisterDoctorView> {
     }
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 700));
-    if (!mounted) return;
-    setState(() => _isLoading = false);
+
+    final expYears = int.tryParse(_experienceController.text.trim()) ?? 0;
+    final fee = double.tryParse(_feeController.text.trim()) ?? 0.0;
+    final bioText = _bioController.text.trim();
 
     final doctorModel = DoctorRegisterModel(
       firstName: _firstNameController.text.trim(),
       lastName: _lastNameController.text.trim(),
       nmcNumber: _nmcNumberController.text.trim(),
-      specialty: _selectedSpecialty,
-      hospitalAffiliation: _hospitalController.text.trim(),
+      experienceYears: expYears,
+      consultationFee: fee,
+      bio: bioText.isNotEmpty ? bioText : null,
       countryCode: _countryCode,
       mobileNumber: _mobileController.text.trim(),
       email: _emailController.text.trim(),
-      password: _passwordController.text.isNotEmpty
-          ? _passwordController.text
-          : 'demo_password',
+      password: _passwordController.text,
       agreedToTerms: _agreedToTerms,
     );
 
-    _showDoctorSuccessDialog(doctorModel);
+    try {
+      // ── API call to DB ────────────────────────────────────────────────
+      final payload = <String, dynamic>{
+        'full_name': doctorModel.fullName,
+        'nmc_registration_number': doctorModel.nmcNumber,
+        'phone': doctorModel.fullPhoneNumber,
+        'password': doctorModel.password,
+        'experience_years': doctorModel.experienceYears,
+        'consultation_fee': doctorModel.consultationFee,
+      };
+
+      if (doctorModel.email.isNotEmpty) {
+        payload['email'] = doctorModel.email;
+      }
+      if (doctorModel.bio != null) {
+        payload['bio'] = doctorModel.bio;
+      }
+
+      await AuthService().registerDoctor(payload);
+      // ──────────────────────────────────────────────────────────────────
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showDoctorSuccessDialog(doctorModel);
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded,
+                  color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(child: Text(e.message)),
+            ],
+          ),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   void _showDoctorSuccessDialog(DoctorRegisterModel model) {
@@ -208,13 +241,17 @@ class _RegisterDoctorViewState extends State<RegisterDoctorView> {
               ),
               child: Column(
                 children: [
-                  _detailRow('Specialty:', model.specialty),
-                  const SizedBox(height: 6),
-                  _detailRow('Hospital:', model.hospitalAffiliation),
-                  const SizedBox(height: 6),
                   _detailRow('NMC License:', model.nmcNumber),
                   const SizedBox(height: 6),
                   _detailRow('Contact:', model.fullPhoneNumber),
+                  const SizedBox(height: 6),
+                  _detailRow('Experience:', '${model.experienceYears} Years'),
+                  const SizedBox(height: 6),
+                  _detailRow('Consultation Fee:', 'NPR ${model.consultationFee.toStringAsFixed(0)}'),
+                  if (model.email.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    _detailRow('Email:', model.email),
+                  ],
                 ],
               ),
             ),
@@ -333,7 +370,7 @@ class _RegisterDoctorViewState extends State<RegisterDoctorView> {
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Verified NMC credentials ensure trustworthy healthcare across Nepal.',
+                        'Nepal Medical Council (NMC) verification is required for practicing doctors.',
                         style: TextStyle(
                           fontSize: 12,
                           color: Color(0xFF1E3A8A),
@@ -346,7 +383,7 @@ class _RegisterDoctorViewState extends State<RegisterDoctorView> {
               ),
               const SizedBox(height: 20),
 
-              // First Name & Last Name
+              // First Name & Last Name (full_name in DB)
               Row(
                 children: [
                   Expanded(
@@ -374,9 +411,9 @@ class _RegisterDoctorViewState extends State<RegisterDoctorView> {
               ),
               const SizedBox(height: 18),
 
-              // NMC Number
+              // NMC Number (nmc_registration_number in DB)
               AuthTextField(
-                label: 'NMC / Medical Council Number',
+                label: 'NMC Registration Number',
                 hint: 'e.g. 14820-NMC',
                 controller: _nmcNumberController,
                 validator: (val) => val == null || val.trim().isEmpty
@@ -385,46 +422,52 @@ class _RegisterDoctorViewState extends State<RegisterDoctorView> {
               ),
               const SizedBox(height: 18),
 
-              // Specialty
-              AuthDropdownField<String>(
-                label: 'Medical Specialty',
-                value: _selectedSpecialty,
-                hint: 'Select specialty',
-                items: _specialties
-                    .map(
-                      (opt) => DropdownMenuItem(
-                        value: opt,
-                        child: Text(
-                          opt,
-                          style: const TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF1E293B),
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() => _selectedSpecialty = val);
-                  }
-                },
+              // Experience Years & Consultation Fee (experience_years & consultation_fee in DB)
+              Row(
+                children: [
+                  Expanded(
+                    child: AuthTextField(
+                      label: 'Experience (Years)',
+                      hint: 'e.g. 5',
+                      controller: _experienceController,
+                      keyboardType: TextInputType.number,
+                      validator: (val) {
+                        if (val != null && val.isNotEmpty && int.tryParse(val) == null) {
+                          return 'Enter whole number';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: AuthTextField(
+                      label: 'Fee (NPR)',
+                      hint: 'e.g. 500',
+                      controller: _feeController,
+                      keyboardType: TextInputType.number,
+                      validator: (val) {
+                        if (val != null && val.isNotEmpty && double.tryParse(val) == null) {
+                          return 'Enter valid fee';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 18),
 
-              // Hospital / Clinic Affiliation
+              // Bio / Clinical Summary (bio in DB)
               AuthTextField(
-                label: 'Current Hospital / Clinic Affiliation',
-                hint: 'e.g. TU Teaching Hospital / Patan Hospital',
-                controller: _hospitalController,
-                validator: (val) => val == null || val.trim().isEmpty
-                    ? 'Hospital affiliation is required'
-                    : null,
+                label: 'Bio / Summary (Optional)',
+                hint: 'e.g. Senior Physician at Bir Hospital with focus on Internal Medicine...',
+                controller: _bioController,
+                keyboardType: TextInputType.multiline,
               ),
               const SizedBox(height: 18),
 
-              // Mobile Number
+              // Mobile Number (phone in DB)
               PhoneInputField(
                 label: 'Mobile Number',
                 controller: _mobileController,
@@ -435,20 +478,17 @@ class _RegisterDoctorViewState extends State<RegisterDoctorView> {
               ),
               const SizedBox(height: 18),
 
-              // Official Email
+              // Official Email (email in DB)
               AuthTextField(
-                label: 'Official Email',
+                label: 'Email (Optional)',
                 hint: 'doctor@hospital.org.np',
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
-                showValidation: true,
+                showValidation: _emailController.text.trim().isNotEmpty,
                 isValid: _isEmailValid,
                 onChanged: (_) => setState(() {}),
                 validator: (val) {
-                  if (val == null || val.trim().isEmpty) {
-                    return 'Email is required';
-                  }
-                  if (!_isEmailValid) {
+                  if (val != null && val.trim().isNotEmpty && !_isEmailValid) {
                     return 'Enter a valid email address';
                   }
                   return null;
@@ -459,9 +499,15 @@ class _RegisterDoctorViewState extends State<RegisterDoctorView> {
               // Password
               AuthTextField(
                 label: 'Account Password',
-                hint: 'Create a password',
+                hint: 'At least 8 characters',
                 controller: _passwordController,
                 obscureText: _obscurePassword,
+                validator: (val) {
+                  if (val == null || val.length < 8) {
+                    return 'Password must be at least 8 characters';
+                  }
+                  return null;
+                },
                 suffix: IconButton(
                   icon: Icon(
                     _obscurePassword
@@ -497,7 +543,7 @@ class _RegisterDoctorViewState extends State<RegisterDoctorView> {
                   const SizedBox(width: 10),
                   const Expanded(
                     child: Text(
-                      'I confirm that I am a licensed medical practitioner under the Nepal Medical Council regulations.',
+                      'I confirm that I am a licensed medical practitioner under Nepal Medical Council regulations.',
                       style: TextStyle(
                         fontSize: 13,
                         color: Color(0xFF475569),
@@ -508,7 +554,7 @@ class _RegisterDoctorViewState extends State<RegisterDoctorView> {
                 ],
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 28),
 
               // Next Button (Amber gradient)
               AuthPrimaryButton(

@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'src/features/auth/view/welcome_view.dart';
+import 'src/services/auth_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Restore JWT session from disk — silent no-op if no previous session.
+  await AuthService().loadSavedSession();
+
   runApp(const SwasthyaSathiApp());
 }
 
@@ -23,3 +29,4 @@ class SwasthyaSathiApp extends StatelessWidget {
     );
   }
 }
+

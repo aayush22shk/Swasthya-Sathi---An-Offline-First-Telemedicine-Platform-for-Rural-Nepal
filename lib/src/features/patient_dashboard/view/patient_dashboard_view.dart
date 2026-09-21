@@ -3,8 +3,10 @@ import '../../../common_widgets/carosel/horizonal_carosel.dart';
 import '../../../common_widgets/doctors/doctor_horizontal_list.dart';
 import '../../../common_widgets/navigation_bar/nav_bar.dart';
 import '../../../common_widgets/urgent_care/urgent_care_banner.dart';
+import '../../../services/auth_service.dart';
 import '../../urgent_care/urgentCare.dart';
 import '../../consultation/view/consultation_view.dart';
+import '../../patient_profile/view/view_profile_screen.dart';
 
 class PatientDashboardView extends StatefulWidget {
   const PatientDashboardView({super.key});
@@ -36,8 +38,12 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
             // Health Records Tab Placeholder
             _buildTabPlaceholder('Offline Medical Records', Icons.folder_shared_outlined),
 
-            // Patient Profile Tab Placeholder
-            _buildTabPlaceholder('Patient Profile & Settings', Icons.person_outline_rounded),
+            // Patient Profile Tab (Connected to ViewProfileScreen)
+            ViewProfileScreen(
+              onBackToHome: () {
+                setState(() => _selectedTabIndex = 0);
+              },
+            ),
           ],
         ),
       ),
@@ -183,6 +189,13 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
 
   // APP HEADER DESIGN
   Widget _buildAppHeader() {
+    final user = AuthService().currentUser;
+    final fullName = user?.fullName ?? 'Aayush';
+    final firstName = fullName.split(' ').first;
+    final initials = fullName.trim().isNotEmpty
+        ? fullName.trim().split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase()
+        : 'AS';
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20.0, 16.0, 20.0, 20.0),
       decoration: const BoxDecoration(
@@ -207,59 +220,66 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
               // User Greeting & Avatar
               Row(
                 children: [
-                  Stack(
-                    children: [
-                      Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF0072FF), Color(0xFF00C6FF)],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF0072FF).withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'AS',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18.0,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 14,
-                          height: 14,
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedTabIndex = 4; // Jump to profile tab
+                      });
+                    },
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: 50,
+                          height: 50,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF10B981),
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF0072FF), Color(0xFF00C6FF)],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF0072FF).withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Text(
+                              initials.isNotEmpty ? initials : 'AS',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18.0,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            width: 14,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(width: 14.0),
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
                           Text(
-                            'Namaste, Aayush 🙏',
-                            style: TextStyle(
+                            'Namaste, $firstName 🙏',
+                            style: const TextStyle(
                               fontSize: 18.0,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF0F172A),
@@ -267,8 +287,8 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
                           ),
                         ],
                       ),
-                      SizedBox(height: 2.0),
-                      Row(
+                      const SizedBox(height: 2.0),
+                      const Row(
                         children: [
                           Icon(
                             Icons.location_on_rounded,
@@ -293,6 +313,7 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
 
               // Action Buttons: Notification & Emergency
               Row(
+
                 children: [
                   Container(
                     decoration: BoxDecoration(

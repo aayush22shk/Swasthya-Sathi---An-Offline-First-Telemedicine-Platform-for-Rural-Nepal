@@ -4,8 +4,9 @@ class PatientRegisterModel {
   final String countryCode;
   final String mobileNumber;
   final String email;
-  final String howDidYouHear;
-  final String? reference;
+  final String? gender;
+  final DateTime? dob;
+  final String? bloodGroup;
   final String password;
   final bool agreedToTerms;
   final DateTime registeredAt;
@@ -16,8 +17,9 @@ class PatientRegisterModel {
     this.countryCode = '+977',
     required this.mobileNumber,
     required this.email,
-    required this.howDidYouHear,
-    this.reference,
+    this.gender,
+    this.dob,
+    this.bloodGroup,
     required this.password,
     required this.agreedToTerms,
     DateTime? registeredAt,
@@ -25,24 +27,26 @@ class PatientRegisterModel {
 
   String get fullName => '$firstName $lastName'.trim();
   String get fullPhoneNumber => '$countryCode$mobileNumber';
+  String? get formattedDob => dob != null
+      ? '${dob!.year.toString().padLeft(4, '0')}-${dob!.month.toString().padLeft(2, '0')}-${dob!.day.toString().padLeft(2, '0')}'
+      : null;
 
   Map<String, dynamic> toJson() {
     return {
-      'firstName': firstName,
-      'lastName': lastName,
-      'countryCode': countryCode,
-      'mobileNumber': mobileNumber,
-      'email': email,
-      'howDidYouHear': howDidYouHear,
-      'reference': reference,
+      'full_name': fullName,
+      'phone': fullPhoneNumber,
+      'email': email.isNotEmpty ? email : null,
+      'gender': gender,
+      'dob': formattedDob,
+      'blood_group': bloodGroup,
+      'password': password,
       'role': 'patient',
-      'agreedToTerms': agreedToTerms,
       'registeredAt': registeredAt.toIso8601String(),
     };
   }
 
   @override
   String toString() {
-    return 'PatientRegisterModel(name: $fullName, phone: $fullPhoneNumber, email: $email)';
+    return 'PatientRegisterModel(name: $fullName, phone: $fullPhoneNumber, gender: $gender, bloodGroup: $bloodGroup)';
   }
 }
