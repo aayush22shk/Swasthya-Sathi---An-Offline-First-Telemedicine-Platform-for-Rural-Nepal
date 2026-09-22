@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/doctor_register_model.dart';
 import 'widgets/auth_text_field.dart';
-import '../../patient_dashboard/view/patient_dashboard_view.dart';
+import '../../doctor_dashboard/view/doctor_dashboard_view.dart';
 import 'login_view.dart';
 import '../../../services/auth_service.dart';
 
@@ -265,7 +265,7 @@ class _RegisterDoctorViewState extends State<RegisterDoctorView> {
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const PatientDashboardView(),
+                      builder: (_) => const DoctorDashboardView(),
                     ),
                     (route) => false,
                   );

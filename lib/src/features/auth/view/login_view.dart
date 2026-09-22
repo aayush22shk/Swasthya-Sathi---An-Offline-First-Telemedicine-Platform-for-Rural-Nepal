@@ -3,6 +3,7 @@ import '../models/user_role.dart';
 import 'widgets/auth_text_field.dart';
 import 'role_selection_view.dart';
 import '../../patient_dashboard/view/patient_dashboard_view.dart';
+import '../../doctor_dashboard/view/doctor_dashboard_view.dart';
 import '../../../services/auth_service.dart';
 
 class LoginView extends StatefulWidget {
@@ -84,10 +85,9 @@ class _LoginViewState extends State<LoginView> {
 
       // Role-based navigation
       if (user.isDoctor) {
-        // TODO: replace with DoctorDashboardView when it is ready
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => const PatientDashboardView()),
+          MaterialPageRoute(builder: (_) => const DoctorDashboardView()),
           (route) => false,
         );
       } else {

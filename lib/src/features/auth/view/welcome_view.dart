@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'login_view.dart';
 import 'role_selection_view.dart';
 import '../../patient_dashboard/view/patient_dashboard_view.dart';
+import '../../doctor_dashboard/view/doctor_dashboard_view.dart';
 
 class WelcomeView extends StatelessWidget {
   const WelcomeView({super.key});
@@ -229,25 +230,51 @@ class WelcomeView extends StatelessWidget {
 
               const SizedBox(height: 20),
 
-              // Guest Tour
-              TextButton(
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const PatientDashboardView(),
+              // Guest / Direct Preview Options
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PatientDashboardView(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'Patient Guest Tour',
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        decoration: TextDecoration.underline,
+                      ),
                     ),
-                  );
-                },
-                child: const Text(
-                  'Skip for now • Explore as Guest',
-                  style: TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    decoration: TextDecoration.underline,
                   ),
-                ),
+                  const Text('  •  ', style: TextStyle(color: Color(0xFF94A3B8))),
+                  TextButton.icon(
+                    icon: const Icon(Icons.medical_services_outlined, size: 15, color: Color(0xFF0072FF)),
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const DoctorDashboardView(),
+                        ),
+                      );
+                    },
+                    label: const Text(
+                      'Doctor Portal',
+                      style: TextStyle(
+                        color: Color(0xFF0072FF),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
             ],
