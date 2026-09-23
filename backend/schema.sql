@@ -480,3 +480,25 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
  
 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
+
+-- =====================================================================
+-- 11. FOLLOW-UPS
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS follow_ups (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    doctor_id       UUID NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
+    patient_id      UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    consultation_id UUID REFERENCES consultations(id) ON DELETE SET NULL,
+    appointment_id  UUID REFERENCES appointments(id) ON DELETE SET NULL,
+    follow_up_date  DATE NOT NULL,
+    notes           TEXT,
+    status          VARCHAR(20) NOT NULL DEFAULT 'upcoming',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_follow_ups_doctor ON follow_ups(doctor_id);
+CREATE INDEX IF NOT EXISTS idx_follow_ups_patient ON follow_ups(patient_id);
+CREATE INDEX IF NOT EXISTS idx_follow_ups_status ON follow_ups(status);
+

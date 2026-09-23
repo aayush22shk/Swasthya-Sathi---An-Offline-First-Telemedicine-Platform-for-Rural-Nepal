@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../../models/appointment_model.dart';
+import '../../../services/appointment_service.dart';
+import 'chat_screen.dart';
 
 // ---------------------------------------------------------------------------
 // DATA MODELS
@@ -18,6 +21,7 @@ class ConsultationModel {
   final String? notes;
   final String consultationFee;
   final double feeAmount;
+  final String? consultationId;
 
   const ConsultationModel({
     required this.id,
@@ -31,6 +35,7 @@ class ConsultationModel {
     this.notes,
     this.consultationFee = 'NRs 1,200',
     this.feeAmount = 1200,
+    this.consultationId,
   });
 }
 
@@ -132,12 +137,88 @@ class ConsultationView extends StatefulWidget {
 class _ConsultationViewState extends State<ConsultationView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  List<ConsultationModel> _ongoingList = [];
+  List<ConsultationModel> _scheduledList = [];
+  List<ConsultationModel> _closedList = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    // Start on Scheduled (index 1) matching the reference image
     _tabController = TabController(length: 3, vsync: this, initialIndex: 1);
+    _loadAppointments();
+  }
+
+  Future<void> _loadAppointments() async {
+    setState(() => _isLoading = true);
+    try {
+      final appts = await AppointmentService().getAppointments();
+      if (!mounted) return;
+
+      if (appts.isEmpty) {
+        setState(() {
+          _ongoingList = _sampleOngoing;
+          _scheduledList = _sampleScheduled;
+          _closedList = _sampleClosed;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final now = DateTime.now();
+      final ongoing = <ConsultationModel>[];
+      final scheduled = <ConsultationModel>[];
+      final closed = <ConsultationModel>[];
+
+      for (final a in appts) {
+        final cm = ConsultationModel(
+          id: a.id,
+          doctorName: a.doctorName,
+          specialty: a.specialty.isNotEmpty ? a.specialty : 'Specialist',
+          avatarUrl: a.doctorPhotoUrl.isNotEmpty
+              ? a.doctorPhotoUrl
+              : 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200&q=80',
+          date: a.formattedDate,
+          time: a.formattedTime,
+          status: a.status == AppointmentStatus.completed ||
+                  a.status == AppointmentStatus.cancelled ||
+                  a.status == AppointmentStatus.noShow
+              ? ConsultationStatus.closed
+              : (a.scheduledAt.difference(now).inHours.abs() <= 2 &&
+                      a.status == AppointmentStatus.confirmed
+                  ? ConsultationStatus.ongoing
+                  : ConsultationStatus.scheduled),
+          feeAmount: a.fee > 0 ? a.fee : 1200,
+          consultationFee: 'NRs ${a.fee.toStringAsFixed(0)}',
+          notes: a.reasonForVisit,
+          consultationId: a.consultationId,
+        );
+
+        if (cm.status == ConsultationStatus.ongoing) {
+          ongoing.add(cm);
+        } else if (cm.status == ConsultationStatus.scheduled) {
+          scheduled.add(cm);
+        } else {
+          closed.add(cm);
+        }
+      }
+
+      setState(() {
+        _ongoingList = ongoing.isNotEmpty ? ongoing : _sampleOngoing;
+        _scheduledList = scheduled.isNotEmpty ? scheduled : _sampleScheduled;
+        _closedList = closed.isNotEmpty ? closed : _sampleClosed;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _ongoingList = _sampleOngoing;
+          _scheduledList = _sampleScheduled;
+          _closedList = _sampleClosed;
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -151,22 +232,30 @@ class _ConsultationViewState extends State<ConsultationView>
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FB),
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(),
-            _buildTabBar(),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _OngoingTab(consultations: _sampleOngoing),
-                  _ScheduledTab(consultations: _sampleScheduled),
-                  _ClosedTab(consultations: _sampleClosed),
-                ],
+        child: RefreshIndicator(
+          onRefresh: _loadAppointments,
+          color: const Color(0xFF0072FF),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(),
+              _buildTabBar(),
+              Expanded(
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(color: Color(0xFF0072FF)),
+                      )
+                    : TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _OngoingTab(consultations: _ongoingList),
+                          _ScheduledTab(consultations: _scheduledList),
+                          _ClosedTab(consultations: _closedList),
+                        ],
+                      ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -360,7 +449,19 @@ class _OngoingCard extends StatelessWidget {
                         backgroundColor: const Color(0xFF0072FF),
                         textColor: Colors.white,
                         iconColor: Colors.white,
-                        onTap: () {},
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatScreen(
+                                doctorName: model.doctorName,
+                                specialty: model.specialty,
+                                avatarUrl: model.avatarUrl,
+                                consultationId: model.consultationId,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -504,7 +605,19 @@ class _ScheduledCard extends StatelessWidget {
                   backgroundColor: const Color(0xFF0072FF),
                   textColor: Colors.white,
                   iconColor: Colors.white,
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChatScreen(
+                          doctorName: model.doctorName,
+                          specialty: model.specialty,
+                          avatarUrl: model.avatarUrl,
+                          consultationId: model.consultationId,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],

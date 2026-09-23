@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../common_widgets/doctors/doctor_model.dart';
+import '../../appointments/view/book_appointment_screen.dart';
 
 class DoctorDetailScreen extends StatefulWidget {
   final DoctorModel doctor;
@@ -470,58 +471,75 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
           topRight: Radius.circular(24.0),
         ),
       ),
-      child: ElevatedButton(
-        onPressed: () {
-          _showBookingSuccessDialog(context, doc);
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFF59E0B), // Vibrant Amber Orange matching Image 2
-          foregroundColor: Colors.white,
-          minimumSize: const Size(double.infinity, 54),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.0),
-          ),
-          elevation: 2,
-        ),
-        child: const Text(
-          'Start Consultation',
-          style: TextStyle(
-            fontSize: 17.0,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showBookingSuccessDialog(BuildContext context, DoctorModel doc) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: const [
-            Icon(Icons.video_call_rounded, color: Color(0xFF0072FF)),
-            SizedBox(width: 8),
-            Text('Start Consultation'),
-          ],
-        ),
-        content: Text(
-          'Connecting live video call with ${doc.name} (${doc.specialty}). Fee: ${doc.consultationFee}.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Fee preview strip
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.account_balance_wallet_outlined,
+                    size: 18, color: Color(0xFF0072FF)),
+                const SizedBox(width: 8),
+                Text(
+                  'Consultation fee: ${doc.consultationFee}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const Spacer(),
+                const Text(
+                  'Pay via eSewa',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF60B246),
+                  ),
+                ),
+              ],
+            ),
           ),
           ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BookAppointmentScreen(doctor: doc),
+                ),
+              );
+            },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0072FF),
+              backgroundColor: const Color(0xFFF59E0B),
               foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 54),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.0),
+              ),
+              elevation: 2,
             ),
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Join Room'),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.calendar_month_rounded, size: 20),
+                SizedBox(width: 10),
+                Text(
+                  'Book Appointment',
+                  style: TextStyle(
+                    fontSize: 17.0,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

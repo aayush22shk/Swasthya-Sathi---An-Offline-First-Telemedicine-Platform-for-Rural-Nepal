@@ -40,6 +40,10 @@ class _DoctorDashboardViewState extends State<DoctorDashboardView> {
         _searchQuery = _searchController.text.trim().toLowerCase();
       });
     });
+    // Fetch all real data from backend on load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _service.refreshAll();
+    });
   }
 
   @override
@@ -222,10 +226,7 @@ class _DoctorDashboardViewState extends State<DoctorDashboardView> {
 
     return RefreshIndicator(
       color: const Color(0xFF0072FF),
-      onRefresh: () async {
-        await Future.delayed(const Duration(milliseconds: 500));
-        setState(() {});
-      },
+      onRefresh: () => _service.refreshAll(),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
@@ -2458,7 +2459,7 @@ class _DoctorDashboardViewState extends State<DoctorDashboardView> {
   // MODALS: CHAT, NEW PRESCRIPTION, NOTIFICATIONS, CALL SIMULATION
   // ───────────────────────────────────────────────────────────────────────────
   void _openChatModal(PatientChatThread thread) {
-    _service.markChatThreadRead(thread.id);
+    _service.markChatThreadRead(thread.consultationId);
     final msgCtrl = TextEditingController();
 
     showModalBottomSheet(
@@ -2602,7 +2603,8 @@ class _DoctorDashboardViewState extends State<DoctorDashboardView> {
                           onPressed: () {
                             final text = msgCtrl.text.trim();
                             if (text.isNotEmpty) {
-                              _service.sendChatMessage(thread.id, text);
+                              _service.sendChatMessageToBackend(
+                                  thread.consultationId, text);
                               msgCtrl.clear();
                               setModalState(() {});
                               setState(() {});
@@ -2704,33 +2706,40 @@ class _DoctorDashboardViewState extends State<DoctorDashboardView> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: () {
-                      _service.addPrescription(
-                        PrescriptionRecord(
-                          id: 'rx_${DateTime.now().millisecondsSinceEpoch}',
-                          patientId: 'p_${DateTime.now().millisecondsSinceEpoch}',
-                          patientName: nameCtrl.text,
-                          date: 'Today',
-                          diagnosis: diagCtrl.text,
-                          clinicalAdvice: adviceCtrl.text,
-                          nextFollowUp: 'In 14 days',
-                          medicines: [
-                            PrescriptionItem(
-                              medicineName: medCtrl.text,
-                              dosage: 'As prescribed',
-                              duration: '14 Days',
-                              instructions: 'Follow strictly',
-                            ),
-                          ],
-                        ),
+                    onPressed: () async {
+                      // For modal prescriptions without a consultationId, we
+                      // issue via the backend using the first patient's id if available.
+                      final patients = _service.myPatients;
+                      final patientId = patients.isNotEmpty
+                          ? patients.first.id
+                          : '';
+                      final success = await _service.issuePrescription(
+                        consultationId: '',
+                        patientId: patientId,
+                        notes:
+                            '${diagCtrl.text}. ${adviceCtrl.text}',
+                        items: [
+                          {
+                            'medicine_name': medCtrl.text,
+                            'dosage': 'As prescribed',
+                            'instructions': 'Follow strictly',
+                            'duration_days': 14,
+                          },
+                        ],
                       );
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Prescription issued & added to patient EHR!'),
-                          backgroundColor: Color(0xFF10B981),
-                        ),
-                      );
+                      if (context.mounted) Navigator.pop(context);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(success
+                                ? 'Prescription issued & saved to patient EHR!'
+                                : 'Saved locally. Sync when online.'),
+                            backgroundColor: success
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFFF59E0B),
+                          ),
+                        );
+                      }
                       setState(() => _patientSubTabIndex = 1);
                     },
                     child: const Text('Save & Issue Prescription'),

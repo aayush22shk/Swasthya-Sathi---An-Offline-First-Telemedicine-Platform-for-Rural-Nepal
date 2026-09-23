@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 import '../../../common_widgets/carosel/horizonal_carosel.dart';
 import '../../../common_widgets/doctors/doctor_horizontal_list.dart';
+import '../../../common_widgets/doctors/doctor_model.dart';
 import '../../../common_widgets/navigation_bar/nav_bar.dart';
 import '../../../common_widgets/urgent_care/urgent_care_banner.dart';
+import '../../../models/appointment_model.dart';
+import '../../../models/specialization_model.dart';
+import '../../../services/appointment_service.dart';
 import '../../../services/auth_service.dart';
-import '../../urgent_care/urgentCare.dart';
+import '../../../services/doctor_service.dart';
+import '../../../services/masters_service.dart';
+import '../../../services/profile_service.dart';
+import '../../appointments/view/book_appointment_screen.dart';
+import '../../consultation/view/chat_screen.dart';
 import '../../consultation/view/consultation_view.dart';
+import '../../doctor_profile/view/doctor_detail_screen.dart';
 import '../../patient_profile/view/view_profile_screen.dart';
+import '../../urgent_care/urgentCare.dart';
 
 class PatientDashboardView extends StatefulWidget {
   const PatientDashboardView({super.key});
@@ -17,6 +27,101 @@ class PatientDashboardView extends StatefulWidget {
 
 class _PatientDashboardViewState extends State<PatientDashboardView> {
   int _selectedTabIndex = 0;
+
+  // Dynamic Dashboard Data State
+  List<DoctorModel> _allDoctors = [];
+  List<DoctorModel> _filteredDoctors = [];
+  List<SpecializationModel> _specializations = [];
+  AppointmentModel? _upcomingAppointment;
+
+  bool isLoadingDashboard = true;
+  String _searchQuery = '';
+  SpecializationModel? _selectedSpec;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadDashboardData() async {
+    setState(() => isLoadingDashboard = true);
+
+    try {
+      final futures = await Future.wait([
+        DoctorService().getDoctors(),
+        MastersService().getSpecializations(),
+        AppointmentService().getUpcomingAppointment(),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _allDoctors = futures[0] as List<DoctorModel>;
+          _specializations = futures[1] as List<SpecializationModel>;
+          _upcomingAppointment = futures[2] as AppointmentModel?;
+          _applyFilters();
+          isLoadingDashboard = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _allDoctors = DoctorModel.sampleDoctors;
+          _applyFilters();
+          isLoadingDashboard = false;
+        });
+      }
+    }
+  }
+
+  void _applyFilters() {
+    List<DoctorModel> list = List.from(_allDoctors);
+
+    // Apply specialization filter
+    if (_selectedSpec != null) {
+      list = list.where((doc) {
+        return doc.specialty.toLowerCase().contains(_selectedSpec!.name.toLowerCase()) ||
+            doc.specializations.any((s) => s.toLowerCase().contains(_selectedSpec!.name.toLowerCase()));
+      }).toList();
+    }
+
+    // Apply search filter
+    if (_searchQuery.trim().isNotEmpty) {
+      final q = _searchQuery.trim().toLowerCase();
+      list = list.where((doc) {
+        return doc.name.toLowerCase().contains(q) ||
+            doc.specialty.toLowerCase().contains(q) ||
+            doc.location.toLowerCase().contains(q);
+      }).toList();
+    }
+
+    _filteredDoctors = list;
+  }
+
+  void _onSearchChanged(String query) {
+    setState(() {
+      _searchQuery = query;
+      _applyFilters();
+    });
+  }
+
+  void _toggleSpecialization(SpecializationModel spec) {
+    setState(() {
+      if (_selectedSpec?.id == spec.id) {
+        _selectedSpec = null;
+      } else {
+        _selectedSpec = spec;
+      }
+      _applyFilters();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,16 +134,16 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
             // Home / Main Patient Dashboard Content
             _buildDashboardHome(context),
 
-            // Services Tab Placeholder
-            _buildTabPlaceholder('Services & Specialties', Icons.medical_services_outlined),
+            // Services & Specialties Tab
+            _buildSpecialtiesTab(),
 
             // Consultations Tab
             const ConsultationView(),
 
-            // Health Records Tab Placeholder
+            // Health Records Tab
             _buildTabPlaceholder('Offline Medical Records', Icons.folder_shared_outlined),
 
-            // Patient Profile Tab (Connected to ViewProfileScreen)
+            // Patient Profile Tab
             ViewProfileScreen(
               onBackToHome: () {
                 setState(() => _selectedTabIndex = 0);
@@ -59,130 +164,148 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
   }
 
   Widget _buildDashboardHome(BuildContext context) {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // -------------------------------------------------------------
-          // 1. APP HEADER
-          // -------------------------------------------------------------
-          _buildAppHeader(),
+    return RefreshIndicator(
+      onRefresh: _loadDashboardData,
+      color: const Color(0xFF0072FF),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. APP HEADER
+            _buildAppHeader(),
 
-          const SizedBox(height: 16.0),
+            const SizedBox(height: 16.0),
 
-          // -------------------------------------------------------------
-          // 2. SEARCH BAR
-          // -------------------------------------------------------------
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: _buildSearchBar(),
-          ),
+            // 2. SEARCH BAR
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: _buildSearchBar(),
+            ),
 
-          const SizedBox(height: 16.0),
+            const SizedBox(height: 16.0),
 
-          // -------------------------------------------------------------
-          // URGENT CARE BANNER
-          // -------------------------------------------------------------
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: UrgentCareBanner(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const UrgentCareScreen(),
+            // URGENT CARE BANNER
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: UrgentCareBanner(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const UrgentCareScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 20.0),
+
+            // 3. ANNOUNCEMENT & HEALTH CAROUSEL
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Featured & Updates',
+                    style: TextStyle(
+                      fontSize: 18.0,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
                   ),
-                );
+                  Text(
+                    'View All',
+                    style: TextStyle(
+                      fontSize: 13.0,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0072FF),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12.0),
+            const HorizontalCarouselWidget(),
+
+            const SizedBox(height: 24.0),
+
+            // 4. QUICK HEALTHCARE ACTIONS / SPECIALTIES GRID
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Quick Healthcare Actions',
+                        style: TextStyle(
+                          fontSize: 18.0,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      if (_selectedSpec != null)
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedSpec = null;
+                              _applyFilters();
+                            });
+                          },
+                          child: const Text(
+                            'Clear Filter',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFFEF4444),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 14.0),
+                  _buildQuickActionsGrid(),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24.0),
+
+            // 5. AVAILABLE DOCTORS HORIZONTAL LIST
+            DoctorHorizontalList(
+              title: _selectedSpec != null
+                  ? '${_selectedSpec!.name} Specialists (${_filteredDoctors.length})'
+                  : 'Available Specialists (${_filteredDoctors.length})',
+              doctors: _filteredDoctors,
+              onViewAll: () {
+                setState(() => _selectedTabIndex = 1);
               },
             ),
-          ),
 
-          const SizedBox(height: 20.0),
+            const SizedBox(height: 24.0),
 
-          // -------------------------------------------------------------
-          // 3. ANNOUNCEMENT & HEALTH CAROUSEL
-          // -------------------------------------------------------------
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Featured & Updates',
-                  style: TextStyle(
-                    fontSize: 18.0,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
-                Text(
-                  'View All',
-                  style: TextStyle(
-                    fontSize: 13.0,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF0072FF),
-                  ),
-                ),
-              ],
+            // 6. UPCOMING CONSULTATION CARD
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: _buildUpcomingAppointmentCard(),
             ),
-          ),
-          const SizedBox(height: 12.0),
-          const HorizontalCarouselWidget(),
 
-          const SizedBox(height: 24.0),
+            const SizedBox(height: 24.0),
 
-          // -------------------------------------------------------------
-          // AVAILABLE DOCTORS HORIZONTAL LIST
-          // -------------------------------------------------------------
-          const DoctorHorizontalList(title: 'Obstetrics & Gynecology'),
-
-          const SizedBox(height: 24.0),
-
-          // -------------------------------------------------------------
-          // 4. QUICK ACTION CATEGORIES GRID
-          // -------------------------------------------------------------
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Quick Healthcare Actions',
-                  style: TextStyle(
-                    fontSize: 18.0,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
-                const SizedBox(height: 14.0),
-                _buildQuickActionsGrid(),
-              ],
+            // 7. OFFLINE SYNC STATUS CARD
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: _buildOfflineStatusCard(),
             ),
-          ),
 
-          const SizedBox(height: 24.0),
-
-          // -------------------------------------------------------------
-          // 5. UPCOMING CONSULTATION CARD
-          // -------------------------------------------------------------
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: _buildUpcomingAppointmentCard(),
-          ),
-
-          const SizedBox(height: 24.0),
-
-          // -------------------------------------------------------------
-          // 6. OFFLINE SYNC STATUS CARD
-          // -------------------------------------------------------------
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: _buildOfflineStatusCard(),
-          ),
-
-          const SizedBox(height: 30.0),
-        ],
+            const SizedBox(height: 30.0),
+          ],
+        ),
       ),
     );
   }
@@ -190,7 +313,8 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
   // APP HEADER DESIGN
   Widget _buildAppHeader() {
     final user = AuthService().currentUser;
-    final fullName = user?.fullName ?? 'Aayush';
+    final profile = ProfileService().currentProfile;
+    final fullName = user?.fullName ?? profile?.fullName ?? 'Aayush';
     final firstName = fullName.split(' ').first;
     final initials = fullName.trim().isNotEmpty
         ? fullName.trim().split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase()
@@ -275,30 +399,26 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            'Namaste, $firstName 🙏',
-                            style: const TextStyle(
-                              fontSize: 18.0,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF0F172A),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        'Namaste, $firstName 🙏',
+                        style: const TextStyle(
+                          fontSize: 18.0,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0F172A),
+                        ),
                       ),
                       const SizedBox(height: 2.0),
-                      const Row(
+                      Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.location_on_rounded,
                             size: 13.0,
                             color: Color(0xFF64748B),
                           ),
-                          SizedBox(width: 3.0),
+                          const SizedBox(width: 3.0),
                           Text(
-                            'Sindhupalchok, Nepal',
-                            style: TextStyle(
+                            profile?.addressLine ?? profile?.location ?? 'Sindhupalchok, Nepal',
+                            style: const TextStyle(
                               fontSize: 12.0,
                               color: Color(0xFF64748B),
                               fontWeight: FontWeight.w500,
@@ -311,38 +431,33 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
                 ],
               ),
 
-              // Action Buttons: Notification & Emergency
-              Row(
-
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(14.0),
+              // Notification Button
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(14.0),
+                ),
+                child: Stack(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.notifications_none_rounded,
+                          color: Color(0xFF334155)),
+                      onPressed: () {},
                     ),
-                    child: Stack(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.notifications_none_rounded,
-                              color: Color(0xFF334155)),
-                          onPressed: () {},
+                    Positioned(
+                      right: 12,
+                      top: 12,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEF4444),
+                          shape: BoxShape.circle,
                         ),
-                        Positioned(
-                          right: 12,
-                          top: 12,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFEF4444),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -366,80 +481,57 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
         ],
       ),
       child: TextField(
+        controller: _searchController,
+        onChanged: _onSearchChanged,
         decoration: InputDecoration(
-          hintText: 'Search doctors, medicines, symptoms...',
+          hintText: 'Search doctors, specialties, location...',
           hintStyle: const TextStyle(
             color: Color(0xFF94A3B8),
             fontSize: 14.0,
           ),
           prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF0072FF)),
-          suffixIcon: Container(
-            margin: const EdgeInsets.all(8.0),
-            padding: const EdgeInsets.all(6.0),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0072FF).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10.0),
-            ),
-            child: const Icon(
-              Icons.tune_rounded,
-              color: Color(0xFF0072FF),
-              size: 18.0,
-            ),
-          ),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 18, color: Color(0xFF94A3B8)),
+                  onPressed: () {
+                    _searchController.clear();
+                    _onSearchChanged('');
+                  },
+                )
+              : Container(
+                  margin: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.all(6.0),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0072FF).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10.0),
+                  ),
+                  child: const Icon(
+                    Icons.tune_rounded,
+                    color: Color(0xFF0072FF),
+                    size: 18.0,
+                  ),
+                ),
           border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
         ),
       ),
     );
   }
 
-  // QUICK ACTIONS GRID
+  // DYNAMIC QUICK ACTIONS GRID
   Widget _buildQuickActionsGrid() {
-    final actions = [
-      {
-        'title': 'Cardiology',
-        //'subtitle': 'Doctor Video/Audio',
-        'icon': Icons.monitor_heart_rounded,
-        'color': const Color(0xFF0072FF),
-        'bg': const Color(0xFFEFF6FF),
-      },
-      {
-        'title': 'General Physician',
-       // 'subtitle': 'Offline Records',
-        'icon': Icons.health_and_safety_outlined,
-        'color': const Color(0xFF10B981),
-        'bg': const Color(0xFFECFDF5),
-      },
-      {
-        'title': 'Clinical Psychology',
-        //'subtitle': 'Meds & Dosage',
-        'icon': Icons.medication_rounded,
-        'color': const Color(0xFF8B5CF6),
-        'bg': const Color(0xFFF5F3FF),
-      },
-      {
-        'title': 'Psychiatry',
-       // 'subtitle': 'AI Assistance',
-        'icon': Icons.health_and_safety_rounded,
-        'color': const Color(0xFFF59E0B),
-        'bg': const Color(0xFFFFFBEB),
-      },
-      {
-        'title': 'Gastroenterology',
-       // 'subtitle': 'Ambulance Helpline',
-        'icon': Icons.emergency_rounded,
-        'color': const Color(0xFFEF4444),
-        'bg': const Color(0xFFFEF2F2),
-      },
-      {
-        'title': 'Licensed Dietician',
-        //'subtitle': 'BP, Pulse, Temp',
-        'icon': Icons.monitor_heart_rounded,
-        'color': const Color(0xFF06B6D4),
-        'bg': const Color(0xFFECFEFF),
-      },
+    final defaultSpecs = [
+      {'name': 'General Physician', 'icon': Icons.health_and_safety_outlined, 'color': const Color(0xFF10B981), 'bg': const Color(0xFFECFDF5)},
+      {'name': 'Cardiology', 'icon': Icons.monitor_heart_rounded, 'color': const Color(0xFF0072FF), 'bg': const Color(0xFFEFF6FF)},
+      {'name': 'Obstetrics & Gynecology', 'icon': Icons.pregnant_woman_rounded, 'color': const Color(0xFFEC4899), 'bg': const Color(0xFFFDF2F8)},
+      {'name': 'Pediatrics', 'icon': Icons.child_care_rounded, 'color': const Color(0xFFF59E0B), 'bg': const Color(0xFFFFFBEB)},
+      {'name': 'Psychiatry', 'icon': Icons.psychology_rounded, 'color': const Color(0xFF8B5CF6), 'bg': const Color(0xFFF5F3FF)},
+      {'name': 'Dermatology', 'icon': Icons.healing_rounded, 'color': const Color(0xFF06B6D4), 'bg': const Color(0xFFECFEFF)},
     ];
+
+    final displayList = _specializations.isNotEmpty
+        ? _specializations.take(6).toList()
+        : defaultSpecs.map((s) => SpecializationModel(id: defaultSpecs.indexOf(s) + 1, name: s['name'] as String)).toList();
 
     return GridView.builder(
       shrinkWrap: true,
@@ -448,24 +540,33 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
         crossAxisCount: 3,
         crossAxisSpacing: 12.0,
         mainAxisSpacing: 12.0,
-        childAspectRatio: 0.9,
+        childAspectRatio: 0.95,
       ),
-      itemCount: actions.length,
+      itemCount: displayList.length,
       itemBuilder: (context, index) {
-        final item = actions[index];
+        final spec = displayList[index];
+        final isSelected = _selectedSpec?.id == spec.id;
+        final style = defaultSpecs[index % defaultSpecs.length];
+
         return InkWell(
-          onTap: () {},
+          onTap: () => _toggleSpecialization(spec),
           borderRadius: BorderRadius.circular(16.0),
           child: Container(
-            padding: const EdgeInsets.all(12.0),
+            padding: const EdgeInsets.all(10.0),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isSelected ? const Color(0xFF0072FF) : Colors.white,
               borderRadius: BorderRadius.circular(16.0),
-              boxShadow: const [
+              border: Border.all(
+                color: isSelected ? const Color(0xFF0072FF) : const Color(0xFFE2E8F0),
+                width: isSelected ? 1.5 : 1.0,
+              ),
+              boxShadow: [
                 BoxShadow(
-                  color: Color(0x08000000),
+                  color: isSelected
+                      ? const Color(0xFF0072FF).withValues(alpha: 0.2)
+                      : const Color(0x08000000),
                   blurRadius: 8,
-                  offset: Offset(0, 3),
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
@@ -473,42 +574,29 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10.0),
+                  padding: const EdgeInsets.all(9.0),
                   decoration: BoxDecoration(
-                    color: item['bg'] as Color,
+                    color: isSelected ? Colors.white.withValues(alpha: 0.2) : style['bg'] as Color,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    item['icon'] as IconData,
-                    color: item['color'] as Color,
-                    size: 24.0,
+                    style['icon'] as IconData,
+                    color: isSelected ? Colors.white : style['color'] as Color,
+                    size: 22.0,
                   ),
                 ),
                 const SizedBox(height: 8.0),
                 Text(
-                  item['title'] as String,
-                  style: const TextStyle(
-                    fontSize: 12.0,
+                  spec.name,
+                  style: TextStyle(
+                    fontSize: 11.5,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
+                    color: isSelected ? Colors.white : const Color(0xFF1E293B),
                   ),
                   textAlign: TextAlign.center,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (item['subtitle'] != null) ...[
-                  const SizedBox(height: 2.0),
-                  Text(
-                    item['subtitle'] as String,
-                    style: const TextStyle(
-                      fontSize: 9.5,
-                      color: Color(0xFF64748B),
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
               ],
             ),
           ),
@@ -517,8 +605,78 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
     );
   }
 
-  // UPCOMING APPOINTMENT CARD
+  // DYNAMIC UPCOMING APPOINTMENT HERO CARD
   Widget _buildUpcomingAppointmentCard() {
+    final appt = _upcomingAppointment;
+
+    if (appt == null) {
+      // Empty state / Promo card to book consultation
+      return Container(
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20.0),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: const [
+            BoxShadow(color: Color(0x06000000), blurRadius: 10, offset: Offset(0, 4)),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.video_camera_front_outlined, color: Color(0xFF0072FF), size: 28),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Need Doctor Advice?',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Book video or audio consult with specialists.',
+                    style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                  ),
+                ],
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (_allDoctors.isNotEmpty) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BookAppointmentScreen(doctor: _allDoctors.first),
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0072FF),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+                elevation: 0,
+              ),
+              child: const Text('Book Now', style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
@@ -561,15 +719,14 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
                 ],
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
                 decoration: BoxDecoration(
                   color: const Color(0xFFDBEAFE),
                   borderRadius: BorderRadius.circular(8.0),
                 ),
-                child: const Text(
-                  'Today',
-                  style: TextStyle(
+                child: Text(
+                  '${appt.formattedDate} • ${appt.formattedTime}',
+                  style: const TextStyle(
                     fontSize: 11.0,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1D4ED8),
@@ -581,28 +738,31 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
           const Divider(height: 20.0, color: Color(0xFFF1F5F9)),
           Row(
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 22,
-                backgroundColor: Color(0xFFE0F2FE),
-                child: Icon(Icons.person, color: Color(0xFF0284C7)),
+                backgroundImage: appt.doctorPhotoUrl.isNotEmpty ? NetworkImage(appt.doctorPhotoUrl) : null,
+                backgroundColor: const Color(0xFFE0F2FE),
+                child: appt.doctorPhotoUrl.isEmpty
+                    ? const Icon(Icons.person, color: Color(0xFF0284C7))
+                    : null,
               ),
               const SizedBox(width: 12.0),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Dr. Bikash Sharma',
-                      style: TextStyle(
+                      appt.doctorName,
+                      style: const TextStyle(
                         fontSize: 15.0,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF0F172A),
                       ),
                     ),
-                    SizedBox(height: 2.0),
+                    const SizedBox(height: 2.0),
                     Text(
-                      'General Physician • Kathmandu Med',
-                      style: TextStyle(
+                      '${appt.specialty.isNotEmpty ? appt.specialty : "Specialist"} • ${appt.mode.toUpperCase()}',
+                      style: const TextStyle(
                         fontSize: 12.0,
                         color: Color(0xFF64748B),
                       ),
@@ -611,12 +771,23 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
                 ),
               ),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChatScreen(
+                        doctorName: appt.doctorName,
+                        specialty: appt.specialty,
+                        avatarUrl: appt.doctorPhotoUrl,
+                        consultationId: appt.consultationId,
+                      ),
+                    ),
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0072FF),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14.0, vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10.0),
                   ),
@@ -699,6 +870,71 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // SERVICES & SPECIALTIES TAB
+  Widget _buildSpecialtiesTab() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F7FB),
+      appBar: AppBar(
+        title: const Text('All Specialists', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        automaticallyImplyLeading: false,
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _allDoctors.length,
+        itemBuilder: (context, index) {
+          final doc = _allDoctors[index];
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 1,
+            child: ListTile(
+              contentPadding: const EdgeInsets.all(12),
+              leading: CircleAvatar(
+                radius: 28,
+                backgroundImage: NetworkImage(doc.avatarUrl),
+                onBackgroundImageError: (e, s) {},
+              ),
+              title: Text(doc.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(doc.specialty, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.star, size: 14, color: Color(0xFFF59E0B)),
+                      const SizedBox(width: 3),
+                      Text(doc.rating.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      const SizedBox(width: 10),
+                      Text(doc.consultationFee, style: const TextStyle(color: Color(0xFF0072FF), fontWeight: FontWeight.bold, fontSize: 12)),
+                    ],
+                  ),
+                ],
+              ),
+              trailing: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => DoctorDetailScreen(doctor: doc)),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0072FF),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                child: const Text('Consult', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

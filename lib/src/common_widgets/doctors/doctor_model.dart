@@ -1,14 +1,20 @@
+/// Represents a doctor returned from the backend API.
 class DoctorModel {
   final String id;
   final String name;
-  final String specialty;
+  final String specialty;       // first specialization name, or 'General'
+  final List<String> specializations;
   final String location;
   final String flagEmoji;
   final String avatarUrl;
   final int recommendationsCount;
   final double rating;
+  final String consultationFee; // formatted string e.g. "NRs 1,200"
+  final double feeAmount;
+  final bool isAvailable;
+  final int experienceYears;
+  final String? bio;
   final String responseTime;
-  final String consultationFee;
   final String videoIntroTitle;
   final List<String> services;
   final List<String> hospitalAffiliations;
@@ -20,153 +26,109 @@ class DoctorModel {
     required this.id,
     required this.name,
     required this.specialty,
-    required this.location,
-    required this.flagEmoji,
+    this.specializations = const [],
+    this.location = 'Nepal',
+    this.flagEmoji = '🇳🇵',
     required this.avatarUrl,
-    required this.recommendationsCount,
+    this.recommendationsCount = 0,
     required this.rating,
-    required this.responseTime,
     required this.consultationFee,
-    required this.videoIntroTitle,
-    required this.services,
-    required this.hospitalAffiliations,
-    required this.memberships,
-    required this.education,
-    required this.certifications,
+    required this.feeAmount,
+    this.isAvailable = true,
+    this.experienceYears = 0,
+    this.bio,
+    this.responseTime = 'Responds within 30 mins',
+    this.videoIntroTitle = 'Online Consultation',
+    this.services = const [],
+    this.hospitalAffiliations = const [],
+    this.memberships = const [],
+    this.education = const [],
+    this.certifications = const [],
   });
 
+  /// Deserialize from the backend API response (GET /api/v1/doctors or /doctors/:id).
+  factory DoctorModel.fromJson(Map<String, dynamic> json) {
+    final fee = double.tryParse(json['consultation_fee']?.toString() ?? '0') ?? 0;
+    final specList = (json['specializations'] as List<dynamic>? ?? [])
+        .map((s) => (s as Map<String, dynamic>)['name']?.toString() ?? '')
+        .where((s) => s.isNotEmpty)
+        .toList();
+    final primarySpec = specList.isNotEmpty ? specList.first : 'General Physician';
+
+    return DoctorModel(
+      id: json['id']?.toString() ?? '',
+      name: json['full_name']?.toString() ?? 'Unknown Doctor',
+      specialty: primarySpec,
+      specializations: specList,
+      avatarUrl: json['profile_photo_url']?.toString() ?? '',
+      rating: double.tryParse(json['average_rating']?.toString() ?? '0') ?? 0,
+      consultationFee: 'NRs ${_formatFee(fee)}',
+      feeAmount: fee,
+      isAvailable: json['is_available'] as bool? ?? true,
+      experienceYears: (json['experience_years'] as num?)?.toInt() ?? 0,
+      bio: json['bio']?.toString(),
+      recommendationsCount: 0,
+    );
+  }
+
+  static String _formatFee(double fee) {
+    if (fee >= 1000) {
+      return fee.toStringAsFixed(0).replaceAllMapped(
+            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+            (m) => '${m[1]},',
+          );
+    }
+    return fee.toStringAsFixed(0);
+  }
+
+  /// Fallback sample list — used when API is unavailable (offline mode).
   static const List<DoctorModel> sampleDoctors = [
     DoctorModel(
       id: 'doc_1',
       name: 'Dr. Bikash Sharma',
       specialty: 'Emergency & Internal Medicine',
-      location: 'Kathmandu, Nepal',
-      flagEmoji: '🇳🇵',
       avatarUrl: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=400&q=80',
-      recommendationsCount: 124,
       rating: 4.9,
-      responseTime: 'Responds within 15 mins',
       consultationFee: 'NRs 1,200',
+      feeAmount: 1200,
+      recommendationsCount: 124,
+      responseTime: 'Responds within 15 mins',
       videoIntroTitle: 'Introduction to Tele-Triage & Rural Care',
       services: [
         'Acute Medical Consultation',
         'Fever & Infection Management',
         'Emergency Remote Triage',
-        'Chronic Illness Follow-up'
+        'Chronic Illness Follow-up',
       ],
       hospitalAffiliations: [
         'Tribhuvan University Teaching Hospital (TUTH)',
         'Grande International Hospital',
-        'Swasthya Sathi Tele-network'
       ],
-      memberships: [
-        'Nepal Medical Association (NMA)',
-        'Society of Internal Medicine of Nepal (SIMON)'
-      ],
-      education: [
-        'MBBS - Institute of Medicine (IOM), Maharajgunj',
-        'MD Internal Medicine - TUTH, Nepal'
-      ],
-      certifications: [
-        'Board Certified in Emergency Medicine',
-        'Advanced Cardiac Life Support (ACLS)'
-      ],
+      memberships: ['Nepal Medical Association (NMA)'],
+      education: ['MBBS - IOM, Maharajgunj', 'MD Internal Medicine - TUTH'],
+      certifications: ['Board Certified in Emergency Medicine', 'ACLS'],
     ),
     DoctorModel(
       id: 'doc_2',
       name: 'Dr. Anjali Shrestha',
       specialty: 'Obstetrics & Gynecology',
       location: 'Lalitpur, Nepal',
-      flagEmoji: '🇳🇵',
       avatarUrl: 'https://images.unsplash.com/photo-1594824813566-78a9c2794025?w=400&q=80',
-      recommendationsCount: 98,
       rating: 4.8,
-      responseTime: 'Responds within 30 mins',
       consultationFee: 'NRs 1,500',
-      videoIntroTitle: 'Maternal Health & Antenatal Care Guide',
+      feeAmount: 1500,
+      recommendationsCount: 98,
+      responseTime: 'Responds within 30 mins',
+      videoIntroTitle: 'Maternal Health & Antenatal Care',
       services: [
         'High-Risk Pregnancy Care',
         'Prenatal & Postnatal Counseling',
         'Reproductive Health',
-        'Routine Gynecological Exams'
       ],
-      hospitalAffiliations: [
-        'Patan Hospital',
-        'Norvic International Hospital'
-      ],
-      memberships: [
-        'Nepal Society of Obstetricians & Gynecologists (NESOG)'
-      ],
-      education: [
-        'MBBS - Kathmandu Medical College',
-        'MD Obstetrics & Gynecology - BPKIHS'
-      ],
-      certifications: [
-        'Fetal Medicine Foundation Certified',
-        'Laparoscopic Surgery Fellowship'
-      ],
-    ),
-    DoctorModel(
-      id: 'doc_3',
-      name: 'Dr. Ismail Aboul Foutouh',
-      specialty: 'Obstetrics & Gynecology',
-      location: 'Cairo, Egypt',
-      flagEmoji: '🇪🇬',
-      avatarUrl: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=400&q=80',
-      recommendationsCount: 83,
-      rating: 4.9,
-      responseTime: 'Responds within 1 hour',
-      consultationFee: 'NRs 2,400',
-      videoIntroTitle: 'Advanced Gynecological Consultations',
-      services: [
-        'Infertility Treatment',
-        'Ultrasound Consultation',
-        'Fetal Health Assessment'
-      ],
-      hospitalAffiliations: [
-        'Cairo University Hospitals',
-        'International Women Center'
-      ],
-      memberships: [
-        'Egyptian Medical Syndicate',
-        'International Federation of Gynaecology (FIGO)'
-      ],
-      education: [
-        'MBBS, MD - Cairo University Faculty of Medicine'
-      ],
-      certifications: [
-        'Subspecialty Certification in Reproductive Endocrinology'
-      ],
-    ),
-    DoctorModel(
-      id: 'doc_4',
-      name: 'Dr. Gael Abou Ghannam',
-      specialty: 'Obstetrics & Gynecology',
-      location: 'Beirut, Lebanon',
-      flagEmoji: '🇱🇧',
-      avatarUrl: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&q=80',
-      recommendationsCount: 112,
-      rating: 4.9,
-      responseTime: 'Responds within 3 hours',
-      consultationFee: 'NRs 2,800',
-      videoIntroTitle: 'Women’s Wellness & Tele-Care',
-      services: [
-        'Preventive Gynecology',
-        'Hormonal Therapy Consultation',
-        'Adolescent Health'
-      ],
-      hospitalAffiliations: [
-        'American University of Beirut Medical Center'
-      ],
-      memberships: [
-        'Lebanese Order of Physicians'
-      ],
-      education: [
-        'MD - American University of Beirut'
-      ],
-      certifications: [
-        'European Board of Obstetrics and Gynaecology (EBCOG)'
-      ],
+      hospitalAffiliations: ['Patan Hospital', 'Norvic International Hospital'],
+      memberships: ['NESOG'],
+      education: ['MBBS - KMC', 'MD OBG - BPKIHS'],
+      certifications: ['Fetal Medicine Foundation Certified'],
     ),
   ];
 }

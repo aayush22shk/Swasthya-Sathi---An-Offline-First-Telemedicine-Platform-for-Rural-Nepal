@@ -4,11 +4,13 @@ const { validate } = require('../../middlewares/validate.middleware');
 const { authenticate, authorize } = require('../../middlewares/auth.middleware');
 const {
   listDoctors, getMyProfile, getDoctor, updateDoctor, deleteDoctor,
+  getMyPatients, getMyPatientById, getMyPrescriptions, getMyConversations,
 } = require('./doctor.controller');
 
 const router = express.Router();
 
 const uuidParam = param('id').isUUID().withMessage('Doctor ID must be a valid UUID.');
+const uuidPatientParam = param('patientId').isUUID().withMessage('Patient ID must be a valid UUID.');
 
 const updateRules = [
   body('full_name').optional().trim().notEmpty().withMessage('Full name cannot be blank.'),
@@ -46,6 +48,40 @@ router.get('/', listQueryRules, validate, listDoctors);
  * @access  Doctor only
  */
 router.get('/me', authenticate, authorize('doctor'), getMyProfile);
+
+/**
+ * @route   GET /api/v1/doctors/me/patients
+ * @desc    List patients who have booked appointments with this doctor
+ * @access  Doctor only
+ */
+router.get('/me/patients', authenticate, authorize('doctor'), getMyPatients);
+
+/**
+ * @route   GET /api/v1/doctors/me/patients/:patientId
+ * @desc    Get full profile of a specific patient (requires relationship)
+ * @access  Doctor only
+ */
+router.get(
+  '/me/patients/:patientId',
+  authenticate,
+  authorize('doctor'),
+  [uuidPatientParam, validate],
+  getMyPatientById
+);
+
+/**
+ * @route   GET /api/v1/doctors/me/prescriptions
+ * @desc    List all prescriptions issued by this doctor
+ * @access  Doctor only
+ */
+router.get('/me/prescriptions', authenticate, authorize('doctor'), getMyPrescriptions);
+
+/**
+ * @route   GET /api/v1/doctors/me/conversations
+ * @desc    List consultation chat threads for this doctor
+ * @access  Doctor only
+ */
+router.get('/me/conversations', authenticate, authorize('doctor'), getMyConversations);
 
 /**
  * @route   GET /api/v1/doctors/:id

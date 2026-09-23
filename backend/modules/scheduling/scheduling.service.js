@@ -93,6 +93,79 @@ const deleteTimeOff = async (timeOffId, doctorId) => {
   return { message: 'Time off removed.' };
 };
 
+/**
+ * Compute bookable time slots for a doctor on a specific date.
+ * - Pulls the weekly availability row matching the weekday
+ * - Generates slot times at slot_duration_minutes intervals
+ * - Removes slots already booked in `appointments` (pending/confirmed)
+ * - Removes slots that fall inside an active `doctor_time_off` block
+ *
+ * @param {string} doctorId
+ * @param {string} date  – ISO date string, e.g. "2026-09-25"
+ * @returns {Promise<{ date: string, slots: string[] }>}
+ */
+const getAvailableSlots = async (doctorId, date) => {
+  // Day-of-week mapping  (0=Sun … 6=Sat)
+  const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const dayIndex = new Date(date).getDay();
+  const dayOfWeek = dayNames[dayIndex];
+
+  // Fetch weekly availability for this weekday
+  const availRes = await pool.query(
+    `SELECT start_time, end_time, slot_duration_minutes
+     FROM doctor_availability
+     WHERE doctor_id = $1 AND day_of_week = $2 AND is_active = true
+     LIMIT 1`,
+    [doctorId, dayOfWeek]
+  );
+
+  if (availRes.rows.length === 0) {
+    return { date, slots: [] };
+  }
+
+  const { start_time, end_time, slot_duration_minutes } = availRes.rows[0];
+
+  // Check if this date falls inside any time-off block
+  const startOfDay = `${date}T00:00:00Z`;
+  const endOfDay   = `${date}T23:59:59Z`;
+  const timeOffRes = await pool.query(
+    `SELECT 1 FROM doctor_time_off
+     WHERE doctor_id = $1 AND start_at <= $2 AND end_at >= $3`,
+    [doctorId, endOfDay, startOfDay]
+  );
+  if (timeOffRes.rows.length > 0) {
+    return { date, slots: [] };
+  }
+
+  // Generate all candidate slot start-times
+  const [sh, sm] = start_time.split(':').map(Number);
+  const [eh, em] = end_time.split(':').map(Number);
+  const startMins = sh * 60 + sm;
+  const endMins   = eh * 60 + em;
+  const duration  = slot_duration_minutes || 15;
+
+  const allSlots = [];
+  for (let t = startMins; t + duration <= endMins; t += duration) {
+    const hh = String(Math.floor(t / 60)).padStart(2, '0');
+    const mm = String(t % 60).padStart(2, '0');
+    allSlots.push(`${hh}:${mm}`);
+  }
+
+  // Fetch already-booked slots on this date
+  const bookedRes = await pool.query(
+    `SELECT to_char(scheduled_at AT TIME ZONE 'UTC', 'HH24:MI') AS slot_time
+     FROM appointments
+     WHERE doctor_id = $1
+       AND DATE(scheduled_at AT TIME ZONE 'UTC') = $2::date
+       AND status IN ('pending', 'confirmed')`,
+    [doctorId, date]
+  );
+  const bookedTimes = new Set(bookedRes.rows.map(r => r.slot_time.substring(0, 5)));
+
+  const freeSlots = allSlots.filter(s => !bookedTimes.has(s));
+  return { date, slots: freeSlots };
+};
+
 module.exports = {
   getDoctorAvailability,
   createAvailabilitySlot,
@@ -100,4 +173,5 @@ module.exports = {
   deleteAvailabilitySlot,
   addTimeOff,
   deleteTimeOff,
+  getAvailableSlots,
 };

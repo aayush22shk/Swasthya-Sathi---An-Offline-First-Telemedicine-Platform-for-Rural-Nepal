@@ -12,6 +12,18 @@ const getDoctorId = async (userId) => {
   return res.rows[0].id;
 };
 
+const getAvailableSlots = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { date } = req.query;
+    if (!date) return sendError(res, 400, 'Query param `date` (YYYY-MM-DD) is required.');
+    const data = await schedulingService.getAvailableSlots(doctorId, date);
+    return sendSuccess(res, 200, 'Available slots retrieved.', data);
+  } catch (err) {
+    return sendError(res, err.statusCode || 500, err.message);
+  }
+};
+
 const getAvailability = async (req, res) => {
   try {
     const data = await schedulingService.getDoctorAvailability(req.params.doctorId);
@@ -78,4 +90,5 @@ module.exports = {
   deleteSlot,
   addTimeOff,
   deleteTimeOff,
+  getAvailableSlots,
 };

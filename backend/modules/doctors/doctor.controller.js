@@ -65,4 +65,77 @@ const deleteDoctor = async (req, res) => {
   }
 };
 
-module.exports = { listDoctors, getMyProfile, getDoctor, updateDoctor, deleteDoctor };
+// ---------------------------------------------------------------------------
+// Helper: resolve doctor entity id from JWT user id
+// ---------------------------------------------------------------------------
+const resolveDoctorId = async (userId) => {
+  const pool = require('../../db');
+  const res = await pool.query('SELECT id FROM doctors WHERE user_id = $1', [userId]);
+  if (res.rows.length === 0) {
+    const err = new Error('Doctor profile not found.');
+    err.statusCode = 404;
+    throw err;
+  }
+  return res.rows[0].id;
+};
+
+// ---------------------------------------------------------------------------
+// GET /api/v1/doctors/me/patients
+// – Return only patients with an appointment with this doctor
+// ---------------------------------------------------------------------------
+const getMyPatients = async (req, res) => {
+  try {
+    const doctorId = await resolveDoctorId(req.user.id);
+    const patients = await doctorService.getDoctorPatients(doctorId);
+    return sendSuccess(res, 200, 'Patients retrieved.', patients);
+  } catch (err) {
+    return sendError(res, err.statusCode || 500, err.message);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// GET /api/v1/doctors/me/patients/:patientId
+// – Get single patient full profile (auth-checked)
+// ---------------------------------------------------------------------------
+const getMyPatientById = async (req, res) => {
+  try {
+    const doctorId = await resolveDoctorId(req.user.id);
+    const patient = await doctorService.getDoctorPatientById(doctorId, req.params.patientId);
+    return sendSuccess(res, 200, 'Patient details retrieved.', patient);
+  } catch (err) {
+    return sendError(res, err.statusCode || 500, err.message);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// GET /api/v1/doctors/me/prescriptions
+// – Return all prescriptions issued by this doctor
+// ---------------------------------------------------------------------------
+const getMyPrescriptions = async (req, res) => {
+  try {
+    const doctorId = await resolveDoctorId(req.user.id);
+    const prescriptions = await doctorService.getDoctorPrescriptions(doctorId);
+    return sendSuccess(res, 200, 'Prescriptions retrieved.', prescriptions);
+  } catch (err) {
+    return sendError(res, err.statusCode || 500, err.message);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// GET /api/v1/doctors/me/conversations
+// – Return consultation chat threads for this doctor
+// ---------------------------------------------------------------------------
+const getMyConversations = async (req, res) => {
+  try {
+    const doctorId = await resolveDoctorId(req.user.id);
+    const conversations = await doctorService.getDoctorConversations(doctorId);
+    return sendSuccess(res, 200, 'Conversations retrieved.', conversations);
+  } catch (err) {
+    return sendError(res, err.statusCode || 500, err.message);
+  }
+};
+
+module.exports = {
+  listDoctors, getMyProfile, getDoctor, updateDoctor, deleteDoctor,
+  getMyPatients, getMyPatientById, getMyPrescriptions, getMyConversations,
+};

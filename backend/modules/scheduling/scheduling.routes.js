@@ -1,5 +1,5 @@
 const express = require('express');
-const { body, param } = require('express-validator');
+const { body, param, query } = require('express-validator');
 const { validate } = require('../../middlewares/validate.middleware');
 const { authenticate, authorize } = require('../../middlewares/auth.middleware');
 const {
@@ -9,6 +9,7 @@ const {
   deleteSlot,
   addTimeOff,
   deleteTimeOff,
+  getAvailableSlots,
 } = require('./scheduling.controller');
 
 const router = express.Router();
@@ -20,6 +21,17 @@ router.get(
   '/doctors/:doctorId/availability',
   [uuidParam('doctorId'), validate],
   getAvailability
+);
+
+// Public: get available time slots for a doctor on a specific date
+router.get(
+  '/doctors/:doctorId/slots',
+  [
+    uuidParam('doctorId'),
+    query('date').notEmpty().matches(/^\d{4}-\d{2}-\d{2}$/).withMessage('Date must be YYYY-MM-DD.'),
+    validate,
+  ],
+  getAvailableSlots
 );
 
 // Doctor only: manage own availability slots

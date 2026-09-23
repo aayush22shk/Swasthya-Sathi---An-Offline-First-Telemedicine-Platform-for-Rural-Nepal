@@ -16,6 +16,7 @@ const pharmacyRoutes = require('./modules/pharmacy/pharmacy.routes');
 const paymentRoutes = require('./modules/payments/payment.routes');
 const feedbackRoutes = require('./modules/feedback/feedback.routes');
 const adminRoutes = require('./modules/admin/admin.routes');
+const followupRoutes = require('./modules/followups/followup.routes');
 
 const { sendSuccess, sendError } = require('./utils/response');
 
@@ -96,6 +97,9 @@ app.use('/api/v1/feedback', feedbackRoutes);
 
 // 12. Admin & Audit Logs
 app.use('/api/v1/admins', adminRoutes);
+
+// 13. Follow-ups
+app.use('/api/v1/follow-ups', followupRoutes);
 
 // ---------------------------------------------------------------------------
 // 404 handler

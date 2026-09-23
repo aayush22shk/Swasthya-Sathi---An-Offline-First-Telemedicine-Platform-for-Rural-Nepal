@@ -200,10 +200,183 @@ const deactivateDoctor = async (doctorId) => {
   return { message: 'Doctor account deactivated.' };
 };
 
+// ---------------------------------------------------------------------------
+// GET doctor's patients — only those with at least one appointment/consultation
+// ---------------------------------------------------------------------------
+const getDoctorPatients = async (doctorId) => {
+  const result = await pool.query(
+    `SELECT DISTINCT
+       p.id, p.full_name, p.dob, p.gender, p.blood_group, p.profile_photo_url,
+       p.phone AS patient_phone, p.emergency_contact_phone,
+       u.email, u.preferred_language,
+       -- Most recent appointment info
+       (
+         SELECT a.status FROM appointments a
+         WHERE a.patient_id = p.id AND a.doctor_id = $1
+         ORDER BY a.scheduled_at DESC LIMIT 1
+       ) AS last_appointment_status,
+       (
+         SELECT a.scheduled_at FROM appointments a
+         WHERE a.patient_id = p.id AND a.doctor_id = $1
+         ORDER BY a.scheduled_at DESC LIMIT 1
+       ) AS last_appointment_at,
+       (
+         SELECT a.reason_for_visit FROM appointments a
+         WHERE a.patient_id = p.id AND a.doctor_id = $1
+         ORDER BY a.scheduled_at DESC LIMIT 1
+       ) AS last_reason
+     FROM patients p
+     JOIN users u ON u.id = p.user_id
+     JOIN appointments a ON a.patient_id = p.id
+     WHERE a.doctor_id = $1
+     ORDER BY last_appointment_at DESC`,
+    [doctorId]
+  );
+  return result.rows;
+};
+
+// ---------------------------------------------------------------------------
+// GET single patient detail (authorized — only if relationship exists)
+// ---------------------------------------------------------------------------
+const getDoctorPatientById = async (doctorId, patientId) => {
+  // Authorization check
+  const authCheck = await pool.query(
+    `SELECT 1 FROM appointments WHERE doctor_id = $1 AND patient_id = $2 LIMIT 1`,
+    [doctorId, patientId]
+  );
+  if (authCheck.rows.length === 0) {
+    const err = new Error('Patient not associated with this doctor.');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Patient profile
+  const patRes = await pool.query(
+    `SELECT
+       p.id, p.full_name, p.dob, p.gender, p.blood_group, p.profile_photo_url,
+       p.phone AS patient_phone, p.emergency_contact_phone, p.address,
+       u.email, u.preferred_language
+     FROM patients p
+     JOIN users u ON u.id = p.user_id
+     WHERE p.id = $1`,
+    [patientId]
+  );
+
+  if (patRes.rows.length === 0) {
+    const err = new Error('Patient not found.');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Appointment history with this doctor
+  const aptRes = await pool.query(
+    `SELECT id, scheduled_at, mode, status, fee, reason_for_visit
+     FROM appointments
+     WHERE doctor_id = $1 AND patient_id = $2
+     ORDER BY scheduled_at DESC`,
+    [doctorId, patientId]
+  );
+
+  // Prescriptions from this doctor
+  const rxRes = await pool.query(
+    `SELECT
+       p2.id, p2.issued_at, p2.notes,
+       COALESCE(json_agg(pi.*) FILTER (WHERE pi.id IS NOT NULL), '[]') AS items
+     FROM prescriptions p2
+     LEFT JOIN prescription_items pi ON pi.prescription_id = p2.id
+     WHERE p2.doctor_id = $1 AND p2.patient_id = $2
+     GROUP BY p2.id
+     ORDER BY p2.issued_at DESC`,
+    [doctorId, patientId]
+  );
+
+  return {
+    ...patRes.rows[0],
+    appointments: aptRes.rows,
+    prescriptions: rxRes.rows,
+  };
+};
+
+// ---------------------------------------------------------------------------
+// GET doctor's prescriptions — all prescriptions issued by doctor
+// ---------------------------------------------------------------------------
+const getDoctorPrescriptions = async (doctorId) => {
+  const result = await pool.query(
+    `SELECT
+       p.id, p.issued_at, p.notes,
+       pat.id AS patient_id, pat.full_name AS patient_name,
+       pat.profile_photo_url AS patient_photo_url,
+       COALESCE(json_agg(
+         json_build_object(
+           'id', pi.id,
+           'medicine_name', pi.medicine_name,
+           'dosage', pi.dosage,
+           'route', pi.route,
+           'frequency', pi.frequency,
+           'duration_days', pi.duration_days,
+           'instructions', pi.instructions
+         )
+       ) FILTER (WHERE pi.id IS NOT NULL), '[]') AS items
+     FROM prescriptions p
+     JOIN patients pat ON pat.id = p.patient_id
+     LEFT JOIN prescription_items pi ON pi.prescription_id = p.id
+     WHERE p.doctor_id = $1
+     GROUP BY p.id, pat.id, pat.full_name, pat.profile_photo_url
+     ORDER BY p.issued_at DESC`,
+    [doctorId]
+  );
+  return result.rows;
+};
+
+// ---------------------------------------------------------------------------
+// GET doctor's chat conversations — consultations involving this doctor
+// ---------------------------------------------------------------------------
+const getDoctorConversations = async (doctorId) => {
+  const result = await pool.query(
+    `SELECT
+       c.id AS consultation_id,
+       c.status AS consultation_status,
+       c.started_at,
+       a.mode,
+       pat.id AS patient_id,
+       pat.full_name AS patient_name,
+       pat.profile_photo_url AS patient_photo_url,
+       -- latest message
+       (
+         SELECT m.message FROM consultation_messages m
+         WHERE m.consultation_id = c.id
+         ORDER BY m.sent_at DESC LIMIT 1
+       ) AS last_message,
+       (
+         SELECT m.sent_at FROM consultation_messages m
+         WHERE m.consultation_id = c.id
+         ORDER BY m.sent_at DESC LIMIT 1
+       ) AS last_message_at,
+       (
+         SELECT COUNT(*) FROM consultation_messages m
+         WHERE m.consultation_id = c.id
+           AND m.sender_id != (SELECT user_id FROM doctors WHERE id = $1)
+           AND m.is_read = false
+       ) AS unread_count
+     FROM consultations c
+     JOIN appointments a ON a.id = c.appointment_id
+     JOIN patients pat ON pat.id = a.patient_id
+     WHERE a.doctor_id = $1
+     ORDER BY last_message_at DESC NULLS LAST`,
+    [doctorId]
+  );
+  return result.rows;
+};
+
 module.exports = {
   listDoctors,
   getDoctorById,
   getDoctorByUserId,
   updateDoctor,
   deactivateDoctor,
+  getDoctorPatients,
+  getDoctorPatientById,
+  getDoctorPrescriptions,
+  getDoctorConversations,
 };
+
