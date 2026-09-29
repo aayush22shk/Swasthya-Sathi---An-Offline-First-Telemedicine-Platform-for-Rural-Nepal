@@ -45,25 +45,50 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     return '$y-$m-$d';
   }
 
+  static const List<String> _defaultTimeSlots = [
+    '09:00 AM',
+    '10:00 AM',
+    '11:00 AM',
+    '12:00 PM',
+    '01:00 PM',
+    '02:00 PM',
+    '03:00 PM',
+    '04:00 PM',
+    '05:00 PM',
+  ];
+
   Future<void> _fetchSlots() async {
     setState(() {
       _isLoadingSlots = true;
-      _selectedSlot = null;
     });
 
-    final slots = await DoctorService().getDoctorSlots(
-      widget.doctor.id,
-      _formattedDateParam,
-    );
+    try {
+      final slots = await DoctorService().getDoctorSlots(
+        widget.doctor.id,
+        _formattedDateParam,
+      );
 
-    if (mounted) {
-      setState(() {
-        _slots = slots;
-        if (_slots.isNotEmpty) {
-          _selectedSlot = _slots.first;
-        }
-        _isLoadingSlots = false;
-      });
+      if (mounted) {
+        setState(() {
+          _slots = slots.isNotEmpty ? slots : List<String>.from(_defaultTimeSlots);
+          if (_slots.contains('12:00 PM')) {
+            _selectedSlot = '12:00 PM';
+          } else if (_slots.isNotEmpty) {
+            _selectedSlot = _slots.first;
+          } else {
+            _selectedSlot = '12:00 PM';
+          }
+          _isLoadingSlots = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _slots = List<String>.from(_defaultTimeSlots);
+          _selectedSlot = '12:00 PM';
+          _isLoadingSlots = false;
+        });
+      }
     }
   }
 
@@ -109,6 +134,14 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       return;
     }
 
+    // Prevent booking in the past
+    if (scheduledAt.isBefore(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot book an appointment in the past. Please select a future date/time.')),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     try {
@@ -123,7 +156,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
 
-      // Navigate to eSewa payment page
+      // Navigate to eSewa payment page only on successful booking
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -142,18 +175,23 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
 
-      // In case of offline/mock fallback: proceed directly to payment
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => EsewaPaymentPage(
-            doctorId: widget.doctor.id,
-            doctorName: widget.doctor.name,
-            specialty: widget.doctor.specialty,
-            avatarUrl: widget.doctor.avatarUrl,
-            consultationFee: widget.doctor.consultationFee,
-            feeAmount: widget.doctor.feeAmount,
+      // Show the actual backend error instead of silently proceeding to payment
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text(
+            'Booking Failed',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
           ),
+          content: Text(errorMessage, style: const TextStyle(fontSize: 14)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK', style: TextStyle(color: Color(0xFF0072FF), fontWeight: FontWeight.bold)),
+            ),
+          ],
         ),
       );
     }
@@ -402,26 +440,12 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       );
     }
 
-    if (_slots.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Center(
-          child: Text(
-            'No slots available on this date. Please pick another day.',
-            style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
-          ),
-        ),
-      );
-    }
+    final displaySlots = _slots.isNotEmpty ? _slots : _defaultTimeSlots;
 
     return Wrap(
       spacing: 10,
       runSpacing: 10,
-      children: _slots.map((slot) {
+      children: displaySlots.map((slot) {
         final isSelected = _selectedSlot == slot;
         return InkWell(
           onTap: () => setState(() => _selectedSlot = slot),

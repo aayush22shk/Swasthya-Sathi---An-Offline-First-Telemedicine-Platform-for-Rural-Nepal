@@ -119,11 +119,15 @@ const getAvailableSlots = async (doctorId, date) => {
     [doctorId, dayOfWeek]
   );
 
-  if (availRes.rows.length === 0) {
-    return { date, slots: [] };
-  }
+  let start_time = '09:00';
+  let end_time = '17:00';
+  let slot_duration_minutes = 30;
 
-  const { start_time, end_time, slot_duration_minutes } = availRes.rows[0];
+  if (availRes.rows.length > 0) {
+    start_time = availRes.rows[0].start_time;
+    end_time = availRes.rows[0].end_time;
+    slot_duration_minutes = availRes.rows[0].slot_duration_minutes;
+  }
 
   // Check if this date falls inside any time-off block
   const startOfDay = `${date}T00:00:00Z`;

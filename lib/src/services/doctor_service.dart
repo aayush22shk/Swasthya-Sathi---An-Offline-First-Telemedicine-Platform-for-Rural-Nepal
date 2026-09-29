@@ -97,25 +97,46 @@ class DoctorService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         final data = body['data'];
+        List rawList = [];
         if (data is List) {
-          return data.map((e) => e.toString()).toList();
+          rawList = data;
         } else if (data is Map && data['slots'] is List) {
-          return (data['slots'] as List).map((e) => e.toString()).toList();
+          rawList = data['slots'] as List;
+        }
+
+        if (rawList.isNotEmpty) {
+          return rawList.map((e) {
+            final s = e.toString().trim();
+            // If already in AM/PM format
+            if (s.toUpperCase().contains('AM') || s.toUpperCase().contains('PM')) {
+              return s;
+            }
+            // Parse HH:mm to AM/PM
+            final parts = s.split(':');
+            if (parts.length >= 2) {
+              int h = int.tryParse(parts[0]) ?? 12;
+              final m = parts[1].padLeft(2, '0');
+              final ampm = h >= 12 ? 'PM' : 'AM';
+              final displayH = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+              return '${displayH.toString().padLeft(2, '0')}:$m $ampm';
+            }
+            return s;
+          }).toList();
         }
       }
     } catch (_) {}
 
-    // Fallback slots if doctor is available
+    // Fallback default slots
     return [
       '09:00 AM',
-      '09:30 AM',
       '10:00 AM',
-      '10:30 AM',
+      '11:00 AM',
+      '12:00 PM',
+      '01:00 PM',
       '02:00 PM',
-      '02:30 PM',
       '03:00 PM',
-      '03:30 PM',
       '04:00 PM',
+      '05:00 PM',
     ];
   }
 }

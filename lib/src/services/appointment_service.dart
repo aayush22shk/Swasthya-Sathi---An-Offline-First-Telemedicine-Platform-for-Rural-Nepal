@@ -15,59 +15,69 @@ class AppointmentService {
         'Authorization': 'Bearer $token',
       };
 
-  /// Fetch list of appointments for the current user
+  /// Fetch list of appointments for the current user.
+  /// Throws on API or network errors so callers can display meaningful messages.
   Future<List<AppointmentModel>> getAppointments({
     String? status,
     int limit = 50,
     int offset = 0,
   }) async {
     final token = AuthService().currentUser?.token;
-    if (token == null || token.isEmpty) return [];
+    if (token == null || token.isEmpty) {
+      throw Exception('Authentication required. Please log in again.');
+    }
 
-    try {
-      final queryParams = <String, String>{
-        'limit': limit.toString(),
-        'offset': offset.toString(),
-        if (status != null && status.isNotEmpty) 'status': status,
-      };
+    final queryParams = <String, String>{
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+      if (status != null && status.isNotEmpty) 'status': status,
+    };
 
-      final uri = Uri.parse(ApiConstants.appointments).replace(queryParameters: queryParams);
-      final response = await http
-          .get(uri, headers: _headers(token))
-          .timeout(const Duration(seconds: 10));
+    final uri = Uri.parse(ApiConstants.appointments).replace(queryParameters: queryParams);
+    final response = await http
+        .get(uri, headers: _headers(token))
+        .timeout(const Duration(seconds: 15));
 
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final body = jsonDecode(response.body) as Map<String, dynamic>;
-        final data = body['data'];
-        List<dynamic> list = [];
-        if (data is List) {
-          list = data;
-        } else if (data is Map && data['appointments'] is List) {
-          list = data['appointments'] as List;
-        }
-        return list
-            .map((item) => AppointmentModel.fromJson(item as Map<String, dynamic>))
-            .toList();
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = body['data'];
+      List<dynamic> list = [];
+      if (data is List) {
+        list = data;
+      } else if (data is Map && data['appointments'] is List) {
+        list = data['appointments'] as List;
       }
-    } catch (_) {}
-    return [];
+      return list
+          .map((item) => AppointmentModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+
+    final msg = body['message'] as String? ?? 'Failed to load appointments.';
+    throw Exception(msg);
   }
 
-  /// Get the earliest upcoming appointment for dashboard card
+  /// Get the earliest upcoming/pending appointment for the dashboard card.
+  /// Returns null silently on error — dedicated screens show real errors.
   Future<AppointmentModel?> getUpcomingAppointment() async {
-    final all = await getAppointments();
-    final now = DateTime.now();
-    final upcoming = all.where((a) {
-      return (a.status == AppointmentStatus.confirmed || a.status == AppointmentStatus.pending) &&
-          a.scheduledAt.isAfter(now.subtract(const Duration(hours: 1)));
-    }).toList();
+    try {
+      final all = await getAppointments();
+      final now = DateTime.now();
+      final upcoming = all.where((a) {
+        return (a.status == AppointmentStatus.confirmed ||
+                a.status == AppointmentStatus.pending) &&
+            a.scheduledAt.isAfter(now.subtract(const Duration(hours: 1)));
+      }).toList();
 
-    if (upcoming.isEmpty) return null;
-    upcoming.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
-    return upcoming.first;
+      if (upcoming.isEmpty) return null;
+      upcoming.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+      return upcoming.first;
+    } catch (_) {
+      return null;
+    }
   }
 
-  /// Book a new appointment
+  /// Book a new appointment.
+  /// Throws with the actual backend error message on failure — callers must handle.
   Future<AppointmentModel> bookAppointment({
     required String doctorId,
     required DateTime scheduledAt,
@@ -80,9 +90,10 @@ class AppointmentService {
       throw Exception('Authentication required to book an appointment.');
     }
 
-    final payload = {
+    final payload = <String, dynamic>{
       'doctor_id': doctorId,
-      'scheduled_at': scheduledAt.toIso8601String(),
+      // Always send UTC ISO-8601 so the backend parses TIMESTAMPTZ correctly
+      'scheduled_at': scheduledAt.toUtc().toIso8601String(),
       'mode': mode,
       'fee': fee,
       if (reasonForVisit != null && reasonForVisit.isNotEmpty)
@@ -95,7 +106,7 @@ class AppointmentService {
           headers: _headers(token),
           body: jsonEncode(payload),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(const Duration(seconds: 20));
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -107,25 +118,37 @@ class AppointmentService {
     throw Exception(msg);
   }
 
-  /// Cancel an appointment
-  Future<void> cancelAppointment(String appointmentId, {String? note}) async {
+  /// Update appointment status — used by doctors (confirmed/cancelled) and patients (cancelled).
+  /// Throws with the actual backend error message on failure.
+  Future<void> updateAppointmentStatus(
+    String appointmentId,
+    String status, {
+    String? note,
+  }) async {
     final token = AuthService().currentUser?.token;
-    if (token == null || token.isEmpty) throw Exception('Authentication required.');
+    if (token == null || token.isEmpty) {
+      throw Exception('Authentication required.');
+    }
 
     final response = await http
         .patch(
           Uri.parse(ApiConstants.appointmentStatus(appointmentId)),
           headers: _headers(token),
           body: jsonEncode({
-            'status': 'cancelled',
+            'status': status,
             if (note != null && note.isNotEmpty) 'note': note,
           }),
         )
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 15));
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      throw Exception(body['message'] ?? 'Failed to cancel appointment.');
+      throw Exception(body['message'] ?? 'Failed to update appointment status.');
     }
+  }
+
+  /// Cancel an appointment (patient-facing convenience wrapper).
+  Future<void> cancelAppointment(String appointmentId, {String? note}) async {
+    await updateAppointmentStatus(appointmentId, 'cancelled', note: note);
   }
 }

@@ -151,24 +151,16 @@ class _ConsultationViewState extends State<ConsultationView>
 
   Future<void> _loadAppointments() async {
     setState(() => _isLoading = true);
+    bool apiSuccess = false;
     try {
       final appts = await AppointmentService().getAppointments();
       if (!mounted) return;
-
-      if (appts.isEmpty) {
-        setState(() {
-          _ongoingList = _sampleOngoing;
-          _scheduledList = _sampleScheduled;
-          _closedList = _sampleClosed;
-          _isLoading = false;
-        });
-        return;
-      }
+      apiSuccess = true;
 
       final now = DateTime.now();
-      final ongoing = <ConsultationModel>[];
+      final ongoing   = <ConsultationModel>[];
       final scheduled = <ConsultationModel>[];
-      final closed = <ConsultationModel>[];
+      final closed    = <ConsultationModel>[];
 
       for (final a in appts) {
         final cm = ConsultationModel(
@@ -188,7 +180,7 @@ class _ConsultationViewState extends State<ConsultationView>
                       a.status == AppointmentStatus.confirmed
                   ? ConsultationStatus.ongoing
                   : ConsultationStatus.scheduled),
-          feeAmount: a.fee > 0 ? a.fee : 1200,
+          feeAmount: a.fee > 0 ? a.fee : 0,
           consultationFee: 'NRs ${a.fee.toStringAsFixed(0)}',
           notes: a.reasonForVisit,
           consultationId: a.consultationId,
@@ -204,17 +196,21 @@ class _ConsultationViewState extends State<ConsultationView>
       }
 
       setState(() {
-        _ongoingList = ongoing.isNotEmpty ? ongoing : _sampleOngoing;
-        _scheduledList = scheduled.isNotEmpty ? scheduled : _sampleScheduled;
-        _closedList = closed.isNotEmpty ? closed : _sampleClosed;
-        _isLoading = false;
+        // Do NOT fall back to sample data when API succeeds — show empty state instead
+        _ongoingList   = ongoing;
+        _scheduledList = scheduled;
+        _closedList    = closed;
+        _isLoading     = false;
       });
     } catch (_) {
+      // Only fall back to sample data on network/API error, not on empty results
       if (mounted) {
         setState(() {
-          _ongoingList = _sampleOngoing;
-          _scheduledList = _sampleScheduled;
-          _closedList = _sampleClosed;
+          if (!apiSuccess) {
+            _ongoingList   = _sampleOngoing;
+            _scheduledList = _sampleScheduled;
+            _closedList    = _sampleClosed;
+          }
           _isLoading = false;
         });
       }

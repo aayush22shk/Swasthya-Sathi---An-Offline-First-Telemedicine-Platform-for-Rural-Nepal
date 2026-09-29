@@ -8,7 +8,7 @@ class ApiConstants {
   ApiConstants._();
 
   // ── Base URL ──────────────────────────────────────────────────────────────
-  static const String baseUrl = 'http://192.168.1.82:5000/api/v1';
+  static const String baseUrl = 'http://10.10.10.5:5000/api/v1';
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   static const String registerPatient = '$baseUrl/auth/register/patient';

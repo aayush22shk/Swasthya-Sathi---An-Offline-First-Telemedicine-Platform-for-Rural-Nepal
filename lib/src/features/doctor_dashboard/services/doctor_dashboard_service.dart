@@ -565,8 +565,13 @@ class DoctorDashboardService extends ChangeNotifier {
 
     // Optimistic update
     final req = _pendingRequests.removeAt(index);
-    req.status = AppointmentStatus.today;
-    _todayAppointments.insert(0, req);
+    final isToday = req.date == 'Today';
+    req.status = isToday ? AppointmentStatus.today : AppointmentStatus.upcoming;
+    if (isToday) {
+      _todayAppointments.insert(0, req);
+    } else {
+      _upcomingAppointments.insert(0, req);
+    }
     notifyListeners();
 
     try {
@@ -599,7 +604,11 @@ class DoctorDashboardService extends ChangeNotifier {
         return true;
       } else {
         // Revert on failure
-        _todayAppointments.removeWhere((a) => a.id == appointmentId);
+        if (isToday) {
+          _todayAppointments.removeWhere((a) => a.id == appointmentId);
+        } else {
+          _upcomingAppointments.removeWhere((a) => a.id == appointmentId);
+        }
         req.status = AppointmentStatus.pending;
         _pendingRequests.insert(index, req);
         notifyListeners();
@@ -607,7 +616,11 @@ class DoctorDashboardService extends ChangeNotifier {
       }
     } catch (e) {
       // Revert on error
-      _todayAppointments.removeWhere((a) => a.id == appointmentId);
+      if (isToday) {
+        _todayAppointments.removeWhere((a) => a.id == appointmentId);
+      } else {
+        _upcomingAppointments.removeWhere((a) => a.id == appointmentId);
+      }
       req.status = AppointmentStatus.pending;
       _pendingRequests.insert(index, req);
       notifyListeners();
@@ -675,17 +688,26 @@ class DoctorDashboardService extends ChangeNotifier {
     }
   }
 
-  void markConsultationCompleted(
+  /// Mark a consultation as completed locally and in the backend database.
+  Future<bool> markConsultationCompleted(
     String appointmentId, {
     String? diagnosis,
     String? prescription,
     String? notes,
-  }) {
-    final index =
-        _todayAppointments.indexWhere((a) => a.id == appointmentId);
-    if (index != -1) {
-      final apt = _todayAppointments.removeAt(index);
-      final completed = apt.copyWith(
+  }) async {
+    DoctorAppointment? targetApt;
+    final todayIdx = _todayAppointments.indexWhere((a) => a.id == appointmentId);
+    if (todayIdx != -1) {
+      targetApt = _todayAppointments.removeAt(todayIdx);
+    } else {
+      final upcomingIdx = _upcomingAppointments.indexWhere((a) => a.id == appointmentId);
+      if (upcomingIdx != -1) {
+        targetApt = _upcomingAppointments.removeAt(upcomingIdx);
+      }
+    }
+
+    if (targetApt != null) {
+      final completed = targetApt.copyWith(
         status: AppointmentStatus.completed,
         diagnosis: diagnosis ??
             'Consultation successfully concluded with clinical guidance.',
@@ -694,6 +716,26 @@ class DoctorDashboardService extends ChangeNotifier {
       );
       _completedConsultations.insert(0, completed);
       notifyListeners();
+    }
+
+    try {
+      final token = await _getToken();
+      if (token != null) {
+        await http
+            .patch(
+              Uri.parse(ApiConstants.appointmentStatus(appointmentId)),
+              headers: _authHeaders(token),
+              body: jsonEncode({
+                'status': 'completed',
+                'note': notes ?? 'Consultation completed.',
+              }),
+            )
+            .timeout(const Duration(seconds: 10));
+      }
+      return true;
+    } catch (e) {
+      if (kDebugMode) debugPrint('markConsultationCompleted error: $e');
+      return false;
     }
   }
 

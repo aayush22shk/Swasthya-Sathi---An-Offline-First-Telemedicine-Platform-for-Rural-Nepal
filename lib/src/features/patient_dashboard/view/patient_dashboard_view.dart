@@ -12,6 +12,7 @@ import '../../../services/doctor_service.dart';
 import '../../../services/masters_service.dart';
 import '../../../services/profile_service.dart';
 import '../../appointments/view/book_appointment_screen.dart';
+import '../../appointments/view/patient_appointments_screen.dart';
 import '../../consultation/view/chat_screen.dart';
 import '../../consultation/view/consultation_view.dart';
 import '../../doctor_profile/view/doctor_detail_screen.dart';
@@ -702,38 +703,59 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
                   Container(
                     width: 8,
                     height: 8,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF0072FF),
+                    decoration: BoxDecoration(
+                      color: appt.status == AppointmentStatus.confirmed
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFFF59E0B),
                       shape: BoxShape.circle,
                     ),
                   ),
                   const SizedBox(width: 6.0),
-                  const Text(
-                    'Upcoming Tele-Consultation',
+                  Text(
+                    appt.status == AppointmentStatus.confirmed
+                        ? 'Confirmed Consultation'
+                        : 'Pending Confirmation',
                     style: TextStyle(
                       fontSize: 13.0,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF64748B),
+                      color: appt.status == AppointmentStatus.confirmed
+                          ? const Color(0xFF059669)
+                          : const Color(0xFFD97706),
                     ),
                   ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDBEAFE),
-                  borderRadius: BorderRadius.circular(8.0),
+              GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PatientAppointmentsScreen()),
                 ),
-                child: Text(
-                  '${appt.formattedDate} • ${appt.formattedTime}',
-                  style: const TextStyle(
-                    fontSize: 11.0,
+                child: const Text(
+                  'View All',
+                  style: TextStyle(
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1D4ED8),
+                    color: Color(0xFF0072FF),
                   ),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
+            decoration: BoxDecoration(
+              color: const Color(0xFFDBEAFE),
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+            child: Text(
+              '${appt.formattedDate} • ${appt.formattedTime}',
+              style: const TextStyle(
+                fontSize: 11.0,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1D4ED8),
+              ),
+            ),
           ),
           const Divider(height: 20.0, color: Color(0xFFF1F5F9)),
           Row(
