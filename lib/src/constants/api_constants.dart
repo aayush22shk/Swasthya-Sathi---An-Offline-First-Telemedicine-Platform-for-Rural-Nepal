@@ -67,6 +67,27 @@ class ApiConstants {
   static const String followUpsByPatient  = '$baseUrl/follow-ups/patient/me';
   static String followUpStatus(String id) => '$baseUrl/follow-ups/$id/status';
 
+  // ── Health Data (Blood Pressure, Glucose, Weight, Symptoms, Conditions, Medications) ──
+  static const String healthVitals      = '$baseUrl/health/vitals';
+  static const String healthBP          = '$baseUrl/health/blood-pressure';
+  static const String healthGlucose     = '$baseUrl/health/glucose';
+  static const String healthWeight      = '$baseUrl/health/weight';
+  static const String healthSymptoms    = '$baseUrl/health/symptoms';
+  static const String healthConditions  = '$baseUrl/health/conditions';
+  static const String healthMedications = '$baseUrl/health/medications';
+  static String healthConditionById(String id) => '$baseUrl/health/conditions/$id';
+  static String healthMedicationById(String id) => '$baseUrl/health/medications/$id';
+
+  // ── Health Analysis ────────────────────────────────────────────────────────
+  static const String healthAnalysisSummary = '$baseUrl/health-analysis/summary';
+  static const String healthAnalysisHistory = '$baseUrl/health-analysis/history';
+  static String healthAnalysisById(String id) => '$baseUrl/health-analysis/$id';
+
+  // ── AI ────────────────────────────────────────────────────────────────────
+  static const String aiExplain           = '$baseUrl/ai/explain';
+  static const String aiConversations     = '$baseUrl/ai/conversations';
+  static String aiConversationMessages(String id) => '$baseUrl/ai/conversations/$id/messages';
+
   // ── Shared-prefs keys ─────────────────────────────────────────────────────
   static const String kToken       = 'auth_token';
   static const String kUserId      = 'auth_user_id';

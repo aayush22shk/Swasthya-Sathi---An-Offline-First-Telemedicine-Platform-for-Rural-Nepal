@@ -536,25 +536,37 @@ class _ScheduledCard extends StatelessWidget {
                         style: const TextStyle(
                             fontSize: 12, color: Color(0xFF64748B))),
                     const SizedBox(height: 10),
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
-                        const Icon(Icons.calendar_today_outlined,
-                            size: 13, color: Color(0xFF0072FF)),
-                        const SizedBox(width: 4),
-                        Text(model.date,
-                            style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF334155))),
-                        const SizedBox(width: 12),
-                        const Icon(Icons.access_time_rounded,
-                            size: 13, color: Color(0xFF0072FF)),
-                        const SizedBox(width: 4),
-                        Text(model.time,
-                            style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF334155))),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.calendar_today_outlined,
+                                size: 12, color: Color(0xFF0072FF)),
+                            const SizedBox(width: 4),
+                            Text(model.date,
+                                style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF334155))),
+                          ],
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.access_time_rounded,
+                                size: 12, color: Color(0xFF0072FF)),
+                            const SizedBox(width: 4),
+                            Text(model.time,
+                                style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF334155))),
+                          ],
+                        ),
                       ],
                     ),
                   ],

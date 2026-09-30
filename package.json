@@ -23,5 +23,9 @@
   "homepage": "https://github.com/aayush22shk/Swasthya-Sathi---An-Offline-First-Telemedicine-Platform-for-Rural-Nepal#readme",
   "dependencies": {
     "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "pdf-parse": "^2.4.5",
+    "pdfjs-dist": "^3.11.174"
   }
 }

@@ -18,6 +18,7 @@ import '../../consultation/view/consultation_view.dart';
 import '../../doctor_profile/view/doctor_detail_screen.dart';
 import '../../patient_profile/view/view_profile_screen.dart';
 import '../../urgent_care/urgentCare.dart';
+import '../../health/view/health_dashboard_screen.dart';
 
 class PatientDashboardView extends StatefulWidget {
   const PatientDashboardView({super.key});
@@ -141,8 +142,8 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
             // Consultations Tab
             const ConsultationView(),
 
-            // Health Records Tab
-            _buildTabPlaceholder('Offline Medical Records', Icons.folder_shared_outlined),
+            // Health Monitor Tab (Blood Pressure, Glucose, Weight, AI Analysis)
+            const HealthDashboardScreen(),
 
             // Patient Profile Tab
             ViewProfileScreen(
@@ -960,30 +961,5 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
       ),
     );
   }
-
-  // TAB PLACEHOLDER FOR OTHER PAGES
-  Widget _buildTabPlaceholder(String title, IconData icon) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 64, color: const Color(0xFF0072FF)),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Swasthya Sathi Telemedicine Platform',
-            style: TextStyle(color: Color(0xFF64748B)),
-          ),
-        ],
-      ),
-    );
-  }
 }
+

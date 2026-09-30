@@ -18,6 +18,11 @@ const feedbackRoutes = require('./modules/feedback/feedback.routes');
 const adminRoutes = require('./modules/admin/admin.routes');
 const followupRoutes = require('./modules/followups/followup.routes');
 
+// Health Analysis System (Phase 1)
+const healthRoutes         = require('./modules/health/health.routes');
+const healthAnalysisRoutes = require('./modules/health-analysis/analysis.routes');
+const aiRoutes             = require('./modules/ai/ai.routes');
+
 const { sendSuccess, sendError } = require('./utils/response');
 
 const app = express();
@@ -101,6 +106,15 @@ app.use('/api/v1/admins', adminRoutes);
 // 13. Follow-ups
 app.use('/api/v1/follow-ups', followupRoutes);
 
+// 14. Health Data (BP, Glucose, Weight, Symptoms, Conditions, Medications)
+app.use('/api/v1/health', healthRoutes);
+
+// 15. Health Analysis (Orchestration + Clinical Rules)
+app.use('/api/v1/health-analysis', healthAnalysisRoutes);
+
+// 16. AI (LLM Explanation + Conversations)
+app.use('/api/v1/ai', aiRoutes);
+
 // ---------------------------------------------------------------------------
 // 404 handler
 // ---------------------------------------------------------------------------
@@ -136,5 +150,8 @@ app.listen(PORT, () => {
   console.log('   • /api/v1/pharmacies');
   console.log('   • /api/v1/payments');
   console.log('   • /api/v1/feedback');
-  console.log('   • /api/v1/admins\n');
+  console.log('   • /api/v1/admins');
+  console.log('   • /api/v1/health        (BP, Glucose, Weight, Conditions, Medications)');
+  console.log('   • /api/v1/health-analysis (Analysis Orchestration)');
+  console.log('   • /api/v1/ai            (LLM Explanation + Chat)\n');
 });

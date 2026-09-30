@@ -33,8 +33,8 @@ class CustomBottomNavBar extends StatelessWidget {
           label: 'Consult',
         ),
         CurvedNavigationBarItem(
-          child: Icon(Icons.folder_shared_outlined, color: Color(0xFF0072FF)),
-          label: 'Records',
+          child: Icon(Icons.favorite_rounded, color: Color(0xFF0072FF)),
+          label: 'Health',
         ),
         CurvedNavigationBarItem(
           child: Icon(Icons.person_outline_rounded, color: Color(0xFF0072FF)),
