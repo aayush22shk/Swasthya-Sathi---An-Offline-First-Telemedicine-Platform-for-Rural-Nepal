@@ -34,9 +34,9 @@ const createAppointment = async ({ patient_id, doctor_id, scheduled_at, mode, fe
     // 3. Insert appointment
     const res = await client.query(
       `INSERT INTO appointments (patient_id, doctor_id, scheduled_at, mode, status, fee, reason_for_visit)
-       VALUES ($1, $2, $3, COALESCE($4, 'video'), 'pending', COALESCE($5, 0), $6)
+       VALUES ($1, $2, $3, COALESCE($4::consultation_mode, 'video'::consultation_mode), 'pending'::appointment_status, COALESCE($5, 0), $6)
        RETURNING *`,
-      [patient_id, doctor_id, scheduled_at, mode, fee, reason_for_visit || null]
+      [patient_id, doctor_id, scheduled_at, mode || 'video', fee, reason_for_visit || null]
     );
     const appointment = res.rows[0];
     console.log('[AppointmentService] createAppointment() inserted row:', appointment.id, 'status:', appointment.status);
@@ -44,7 +44,7 @@ const createAppointment = async ({ patient_id, doctor_id, scheduled_at, mode, fe
     // 4. Log status history
     await client.query(
       `INSERT INTO appointment_status_history (appointment_id, old_status, new_status, changed_by, note)
-       VALUES ($1, NULL, 'pending', $2, 'Appointment booked.')`,
+       VALUES ($1, NULL, 'pending'::appointment_status, $2, 'Appointment booked.')`,
       [appointment.id, user_id || null]
     );
 
@@ -220,7 +220,7 @@ const updateAppointmentStatus = async (appointmentId, newStatus, changedByUserId
     // 2. Update status
     const updateRes = await client.query(
       `UPDATE appointments
-       SET status = $1, updated_at = now()
+       SET status = $1::appointment_status, updated_at = now()
        WHERE id = $2
        RETURNING *`,
       [newStatus, appointmentId]
@@ -229,7 +229,7 @@ const updateAppointmentStatus = async (appointmentId, newStatus, changedByUserId
     // 3. Log history
     await client.query(
       `INSERT INTO appointment_status_history (appointment_id, old_status, new_status, changed_by, note)
-       VALUES ($1, $2, $3, $4, $5)`,
+       VALUES ($1, $2::appointment_status, $3::appointment_status, $4, $5)`,
       [appointmentId, current.status, newStatus, changedByUserId || null, note || `Status changed to ${newStatus}.`]
     );
 
@@ -264,12 +264,12 @@ const rescheduleAppointment = async (appointmentId, { scheduled_at, mode, reason
   const res = await pool.query(
     `UPDATE appointments
      SET scheduled_at = COALESCE($1, scheduled_at),
-         mode = COALESCE($2, mode),
+         mode = COALESCE($2::consultation_mode, mode),
          reason_for_visit = COALESCE($3, reason_for_visit),
          updated_at = now()
      WHERE id = $4
      RETURNING *`,
-    [scheduled_at, mode, reason, appointmentId]
+    [scheduled_at || null, mode || null, reason || null, appointmentId]
   );
   if (res.rows.length === 0) {
     const err = new Error('Appointment not found.');

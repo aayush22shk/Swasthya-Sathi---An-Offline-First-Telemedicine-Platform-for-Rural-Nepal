@@ -1,16 +1,16 @@
 const pool = require('../../db');
 
-const createPrescription = async ({ consultation_id, doctor_id, patient_id, notes, items = [] }) => {
+const createPrescription = async ({ consultation_id, appointment_id, doctor_id, patient_id, notes, items = [] }) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
     // 1. Insert prescription
     const rxRes = await client.query(
-      `INSERT INTO prescriptions (consultation_id, doctor_id, patient_id, notes)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO prescriptions (consultation_id, appointment_id, doctor_id, patient_id, notes)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [consultation_id, doctor_id, patient_id, notes || null]
+      [consultation_id || null, appointment_id || null, doctor_id, patient_id, notes || null]
     );
     const prescription = rxRes.rows[0];
 
@@ -19,7 +19,7 @@ const createPrescription = async ({ consultation_id, doctor_id, patient_id, note
     for (const item of items) {
       const itemRes = await client.query(
         `INSERT INTO prescription_items (prescription_id, medicine_name, dosage, route, frequency, duration_days, instructions)
-         VALUES ($1, $2, $3, COALESCE($4, 'oral'), $5, $6, $7)
+         VALUES ($1, $2, $3, COALESCE($4::prescription_item_route, 'oral'::prescription_item_route), $5, $6, $7)
          RETURNING *`,
         [
           prescription.id,

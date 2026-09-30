@@ -33,11 +33,19 @@ const getDoctorFollowUps = async (doctorId, status) => {
       p.gender AS patient_gender,
       p.blood_group AS patient_blood_group,
       p.profile_photo_url AS patient_photo_url,
-      p.phone AS patient_phone,
+      u.phone AS patient_phone,
       d.full_name AS doctor_name,
-      d.specialty AS doctor_specialty
+      (
+        SELECT s.name
+        FROM doctor_specializations ds
+        JOIN specializations s ON s.id = ds.specialization_id
+        WHERE ds.doctor_id = d.id
+        ORDER BY s.id
+        LIMIT 1
+      ) AS doctor_specialty
     FROM follow_ups f
     JOIN patients p ON p.id = f.patient_id
+    JOIN users u ON u.id = p.user_id
     JOIN doctors d ON d.id = f.doctor_id
     WHERE f.doctor_id = $1
   `;

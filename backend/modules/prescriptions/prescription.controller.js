@@ -4,7 +4,7 @@ const { sendSuccess, sendError } = require('../../utils/response');
 
 const issuePrescription = async (req, res) => {
   try {
-    let { consultation_id, doctor_id, patient_id, notes, items } = req.body;
+    let { consultation_id, appointment_id, doctor_id, patient_id, notes, items } = req.body;
 
     if (req.user.role === 'doctor' && !doctor_id) {
       const docRes = await pool.query('SELECT id FROM doctors WHERE user_id = $1', [req.user.id]);
@@ -16,7 +16,8 @@ const issuePrescription = async (req, res) => {
     }
 
     const data = await prescriptionService.createPrescription({
-      consultation_id,
+      consultation_id: consultation_id || null,
+      appointment_id: appointment_id || null,
       doctor_id,
       patient_id,
       notes,

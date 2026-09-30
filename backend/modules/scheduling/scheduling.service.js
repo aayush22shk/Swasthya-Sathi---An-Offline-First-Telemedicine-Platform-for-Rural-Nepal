@@ -29,7 +29,7 @@ const getDoctorAvailability = async (doctorId) => {
 const createAvailabilitySlot = async (doctorId, { day_of_week, start_time, end_time, slot_duration_minutes, is_active }) => {
   const res = await pool.query(
     `INSERT INTO doctor_availability (doctor_id, day_of_week, start_time, end_time, slot_duration_minutes, is_active)
-     VALUES ($1, $2, $3, $4, COALESCE($5, 15), COALESCE($6, true))
+     VALUES ($1, $2::weekday_type, $3, $4, COALESCE($5, 15), COALESCE($6, true))
      RETURNING *`,
     [doctorId, day_of_week, start_time, end_time, slot_duration_minutes, is_active]
   );
@@ -40,14 +40,14 @@ const updateAvailabilitySlot = async (slotId, doctorId, fields) => {
   const { day_of_week, start_time, end_time, slot_duration_minutes, is_active } = fields;
   const res = await pool.query(
     `UPDATE doctor_availability
-     SET day_of_week = COALESCE($1, day_of_week),
+     SET day_of_week = COALESCE($1::weekday_type, day_of_week),
          start_time = COALESCE($2, start_time),
          end_time = COALESCE($3, end_time),
          slot_duration_minutes = COALESCE($4, slot_duration_minutes),
          is_active = COALESCE($5, is_active)
      WHERE id = $6 AND doctor_id = $7
      RETURNING *`,
-    [day_of_week, start_time, end_time, slot_duration_minutes, is_active, slotId, doctorId]
+    [day_of_week || null, start_time, end_time, slot_duration_minutes, is_active, slotId, doctorId]
   );
   if (res.rows.length === 0) {
     const err = new Error('Slot not found or unauthorized.');

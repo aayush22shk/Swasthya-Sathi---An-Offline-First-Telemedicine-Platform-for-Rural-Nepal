@@ -17,7 +17,8 @@ router.post(
   '/',
   authorize('doctor', 'admin'),
   [
-    body('consultation_id').isUUID().withMessage('Valid consultation_id UUID required.'),
+    body('consultation_id').optional({ checkFalsy: true }).isUUID().withMessage('consultation_id must be a valid UUID if provided.'),
+    body('appointment_id').optional({ checkFalsy: true }).isUUID().withMessage('appointment_id must be a valid UUID if provided.'),
     body('patient_id').isUUID().withMessage('Valid patient_id UUID required.'),
     body('items').isArray({ min: 1 }).withMessage('Prescription must include at least one item.'),
     body('items.*.medicine_name').trim().notEmpty().withMessage('Medicine name is required for each item.'),

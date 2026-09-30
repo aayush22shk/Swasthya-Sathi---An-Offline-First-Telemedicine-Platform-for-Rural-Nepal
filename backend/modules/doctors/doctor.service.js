@@ -207,7 +207,7 @@ const getDoctorPatients = async (doctorId) => {
   const result = await pool.query(
     `SELECT DISTINCT
        p.id, p.full_name, p.dob, p.gender, p.blood_group, p.profile_photo_url,
-       p.phone AS patient_phone, p.emergency_contact_phone,
+       u.phone AS patient_phone, p.emergency_contact_phone,
        u.email, u.preferred_language,
        -- Most recent appointment info
        (
@@ -254,7 +254,7 @@ const getDoctorPatientById = async (doctorId, patientId) => {
   const patRes = await pool.query(
     `SELECT
        p.id, p.full_name, p.dob, p.gender, p.blood_group, p.profile_photo_url,
-       p.phone AS patient_phone, p.emergency_contact_phone, p.address,
+       u.phone AS patient_phone, p.emergency_contact_phone, p.address_line AS address,
        u.email, u.preferred_language
      FROM patients p
      JOIN users u ON u.id = p.user_id
@@ -335,28 +335,27 @@ const getDoctorConversations = async (doctorId) => {
   const result = await pool.query(
     `SELECT
        c.id AS consultation_id,
-       c.status AS consultation_status,
        c.started_at,
+       c.ended_at,
        a.mode,
        pat.id AS patient_id,
        pat.full_name AS patient_name,
        pat.profile_photo_url AS patient_photo_url,
        -- latest message
        (
-         SELECT m.message FROM consultation_messages m
+         SELECT m.message FROM chat_messages m
          WHERE m.consultation_id = c.id
          ORDER BY m.sent_at DESC LIMIT 1
        ) AS last_message,
        (
-         SELECT m.sent_at FROM consultation_messages m
+         SELECT m.sent_at FROM chat_messages m
          WHERE m.consultation_id = c.id
          ORDER BY m.sent_at DESC LIMIT 1
        ) AS last_message_at,
        (
-         SELECT COUNT(*) FROM consultation_messages m
+         SELECT COUNT(*)::int FROM chat_messages m
          WHERE m.consultation_id = c.id
            AND m.sender_id != (SELECT user_id FROM doctors WHERE id = $1)
-           AND m.is_read = false
        ) AS unread_count
      FROM consultations c
      JOIN appointments a ON a.id = c.appointment_id

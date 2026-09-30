@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/profile_service.dart';
+import '../../../services/prescription_service.dart';
 import '../models/patient_profile_model.dart';
 import '../widgets/patient_avatar_widget.dart';
 import 'account_settings_screen.dart';
@@ -504,13 +505,19 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
   }
 
   void _showPrescriptionsBottomSheet(BuildContext context) {
+    final patientId = _profile?.id ?? '';
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
       ),
       builder: (ctx) => SafeArea(
-        child: Padding(
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
+          ),
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -519,9 +526,15 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'E-Prescriptions',
-                    style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                  const Row(
+                    children: [
+                      Icon(Icons.medication_rounded, color: Color(0xFF0072FF), size: 24),
+                      SizedBox(width: 8),
+                      Text(
+                        'E-Prescriptions',
+                        style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                      ),
+                    ],
                   ),
                   IconButton(
                     icon: const Icon(Icons.close_rounded),
@@ -530,25 +543,172 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
                 ],
               ),
               const SizedBox(height: 16.0),
-              Container(
-                padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(14.0),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.medication_outlined, color: Color(0xFF10B981)),
-                    SizedBox(width: 12.0),
-                    Expanded(
-                      child: Text(
-                        'No active e-prescriptions. Digital prescriptions from consultations will appear here.',
-                        style: TextStyle(color: Color(0xFF64748B), fontSize: 13.5),
+              if (patientId.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(16.0),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(14.0),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Color(0xFF64748B)),
+                      SizedBox(width: 12.0),
+                      Expanded(
+                        child: Text(
+                          'Please log in with a complete patient profile to view prescriptions.',
+                          style: TextStyle(color: Color(0xFF64748B), fontSize: 13.5),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                )
+              else
+                Expanded(
+                  child: FutureBuilder<List<PatientPrescription>>(
+                    future: PrescriptionService().getPatientPrescriptions(patientId),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(color: Color(0xFF0072FF)),
+                        );
+                      }
+                      final rxList = snapshot.data ?? [];
+                      if (rxList.isEmpty) {
+                        return Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(20.0),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(16.0),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: const Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.receipt_long_outlined, size: 44, color: Color(0xFF94A3B8)),
+                                SizedBox(height: 12),
+                                Text(
+                                  'No Prescriptions Yet',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B)),
+                                ),
+                                SizedBox(height: 6),
+                                Text(
+                                  'Digital prescriptions issued after your consultations will be saved here.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+
+                      return ListView.separated(
+                        itemCount: rxList.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 14),
+                        itemBuilder: (context, i) {
+                          final rx = rxList[i];
+                          return Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x06000000),
+                                  blurRadius: 8,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEFF6FF),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(Icons.medical_services_rounded, color: Color(0xFF0072FF), size: 18),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            rx.doctorName,
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
+                                          ),
+                                          Text(
+                                            'Issued on ${rx.formattedDate}',
+                                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFECFDF5),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Text(
+                                        'Verified Rx',
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF059669)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (rx.notes.isNotEmpty) ...[
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'Doctor Notes: ${rx.notes}',
+                                    style: const TextStyle(fontSize: 12, color: Color(0xFF475569), fontStyle: FontStyle.italic),
+                                  ),
+                                ],
+                                const SizedBox(height: 12),
+                                const Divider(height: 1),
+                                const SizedBox(height: 10),
+                                const Text(
+                                  'Medicines:',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                                ),
+                                const SizedBox(height: 6),
+                                ...rx.items.map((item) => Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 3),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('• ', style: TextStyle(color: Color(0xFF0072FF), fontWeight: FontWeight.bold)),
+                                      Expanded(
+                                        child: RichText(
+                                          text: TextSpan(
+                                            style: const TextStyle(fontSize: 13, color: Color(0xFF1E293B)),
+                                            children: [
+                                              TextSpan(text: item.medicineName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                              if (item.dosage.isNotEmpty) TextSpan(text: ' - ${item.dosage}', style: const TextStyle(color: Color(0xFF64748B))),
+                                              if (item.instructions.isNotEmpty) TextSpan(text: ' (${item.instructions})', style: const TextStyle(color: Color(0xFF059669), fontSize: 12)),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
-              ),
             ],
           ),
         ),
