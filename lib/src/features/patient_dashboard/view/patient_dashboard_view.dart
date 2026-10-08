@@ -13,6 +13,7 @@ import '../../../services/masters_service.dart';
 import '../../../services/profile_service.dart';
 import '../../appointments/view/book_appointment_screen.dart';
 import '../../appointments/view/patient_appointments_screen.dart';
+import '../../consultation/view/ai_doctor_chat_screen.dart';
 import '../../consultation/view/chat_screen.dart';
 import '../../consultation/view/consultation_view.dart';
 import '../../doctor_profile/view/doctor_detail_screen.dart';
@@ -202,7 +203,16 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
               ),
             ),
 
+            const SizedBox(height: 16.0),
+
+            // 🤖 SWASTHYA SATHI AI DOCTOR PROMINENT CARD
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: _buildAiDoctorBanner(context),
+            ),
+
             const SizedBox(height: 20.0),
+
 
             // 3. ANNOUNCEMENT & HEALTH CAROUSEL
             const Padding(
@@ -516,6 +526,153 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
         ),
+      ),
+    );
+  }
+
+  // 🤖 SWASTHYA SATHI AI DOCTOR BANNER
+  Widget _buildAiDoctorBanner(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF3730A3), Color(0xFF6366F1), Color(0xFF8B5CF6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20.0),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Subtle background decoration icon
+          Positioned(
+            right: -10,
+            bottom: -10,
+            child: Icon(
+              Icons.smart_toy_rounded,
+              size: 110,
+              color: Colors.white.withValues(alpha: 0.12),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(18.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.smart_toy_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Text(
+                                'Swasthya Sathi AI Doctor',
+                                style: TextStyle(
+                                  fontSize: 16.0,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.25),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'AI Bot',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Text(
+                            '24/7 Automated Health Guidance Assistant',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: Color(0xFFE0E7FF),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12.0),
+                const Text(
+                  'Have health questions or need symptom explanations? Start an instant AI consultation without booking an appointment.',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: Color(0xFFF1F5F9),
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 14.0),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFF3730A3),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                        label: const Text(
+                          'Chat with AI Doctor',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AiDoctorChatScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

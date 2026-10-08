@@ -739,6 +739,111 @@ class DoctorDashboardService extends ChangeNotifier {
     }
   }
 
+  /// Save consultation summary (diagnosis and clinical notes) to backend.
+  Future<bool> saveConsultationSummary({
+    required String consultationId,
+    required String diagnosis,
+    required String doctorNotes,
+    String? appointmentId,
+  }) async {
+    try {
+      final token = await _getToken();
+      if (token == null) return false;
+
+      final response = await http
+          .put(
+            Uri.parse(ApiConstants.consultationById(consultationId)),
+            headers: _authHeaders(token),
+            body: jsonEncode({
+              'diagnosis': diagnosis,
+              'doctor_notes': doctorNotes,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (appointmentId != null && appointmentId.isNotEmpty) {
+        await markConsultationCompleted(
+          appointmentId,
+          diagnosis: diagnosis,
+          notes: doctorNotes,
+        );
+      }
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        _notifications.insert(
+          0,
+          DoctorNotificationItem(
+            id: 'notif_${DateTime.now().millisecondsSinceEpoch}',
+            title: 'Consultation Summary Saved',
+            message: 'Clinical summary and diagnosis saved successfully.',
+            timeAgo: 'Just now',
+            category: NotificationCategory.systemAlert,
+            isRead: false,
+          ),
+        );
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('saveConsultationSummary error: $e');
+    }
+    return false;
+  }
+
+  /// Issue a digital prescription with medication items to backend.
+  Future<bool> issueDigitalPrescription({
+    required String patientId,
+    String? consultationId,
+    String? appointmentId,
+    required String notes,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    try {
+      final token = await _getToken();
+      if (token == null) return false;
+
+      final user = AuthService().currentUser;
+      final payload = {
+        if (consultationId != null && consultationId.isNotEmpty) 'consultation_id': consultationId,
+        if (appointmentId != null && appointmentId.isNotEmpty) 'appointment_id': appointmentId,
+        if (user != null && user.id.isNotEmpty) 'doctor_id': user.id,
+        'patient_id': patientId,
+        'notes': notes,
+        'items': items,
+      };
+
+      final response = await http
+          .post(
+            Uri.parse(ApiConstants.prescriptions),
+            headers: _authHeaders(token),
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        _notifications.insert(
+          0,
+          DoctorNotificationItem(
+            id: 'notif_${DateTime.now().millisecondsSinceEpoch}',
+            title: 'Prescription Issued',
+            message: 'Digital prescription with ${items.length} medicines issued to patient.',
+            timeAgo: 'Just now',
+            category: NotificationCategory.systemAlert,
+            isRead: false,
+          ),
+        );
+        fetchPrescriptions();
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('issueDigitalPrescription error: $e');
+    }
+    return false;
+  }
+
+
+
   // ── Availability ──────────────────────────────────────────────────────────
 
   Future<bool> setAvailability(bool available) async {

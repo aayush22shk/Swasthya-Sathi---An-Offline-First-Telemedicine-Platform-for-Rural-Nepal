@@ -38,7 +38,6 @@ class _WeightEntryScreenState extends State<WeightEntryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final val = double.tryParse(_weightCtrl.text);
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FB),
       appBar: AppBar(title: const Text('Weight', style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.white, foregroundColor: const Color(0xFF0F172A), elevation: 0),
@@ -48,18 +47,8 @@ class _WeightEntryScreenState extends State<WeightEntryScreen> {
           key: _formKey,
           child: Column(
             children: [
-              if (val != null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 20),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFF059669).withValues(alpha: 0.3))),
-                  child: Row(children: [
-                    const Icon(Icons.scale_rounded, color: Color(0xFF059669), size: 32),
-                    const SizedBox(width: 16),
-                    Text('${val.toStringAsFixed(1)} kg', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF059669))),
-                  ]),
-                ),
               Container(
+                key: const ValueKey('weight_input_card'),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: const [BoxShadow(color: Color(0x08000000), blurRadius: 12, offset: Offset(0, 4))]),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -68,7 +57,6 @@ class _WeightEntryScreenState extends State<WeightEntryScreen> {
                   TextFormField(
                     controller: _weightCtrl,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    onChanged: (_) => setState(() {}),
                     decoration: InputDecoration(
                       labelText: 'Weight', suffixText: 'kg',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -100,7 +88,31 @@ class _WeightEntryScreenState extends State<WeightEntryScreen> {
                   ),
                 ]),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              ListenableBuilder(
+                listenable: _weightCtrl,
+                builder: (context, _) {
+                  final val = double.tryParse(_weightCtrl.text);
+                  if (val == null) return const SizedBox.shrink();
+
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFF059669).withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.scale_rounded, color: Color(0xFF059669), size: 28),
+                        const SizedBox(width: 14),
+                        Text('${val.toStringAsFixed(1)} kg', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF059669))),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(

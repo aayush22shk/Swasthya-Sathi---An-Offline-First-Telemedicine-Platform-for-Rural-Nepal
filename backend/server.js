@@ -134,7 +134,7 @@ app.use((err, req, res, next) => {
 // ---------------------------------------------------------------------------
 // Start server
 // ---------------------------------------------------------------------------
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 SwasthyaSathi API running → http://localhost:${PORT}`);
   console.log('   Mounted Endpoints:');
   console.log('   • /api/v1/health');

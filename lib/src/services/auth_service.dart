@@ -117,9 +117,10 @@ class AuthService {
       throw AuthException(message, statusCode: response.statusCode);
     } on AuthException {
       rethrow;
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('Auth network error ($url): $e\n$stack');
       throw AuthException(
-        'Network error — please check your connection and try again.',
+        'Network error ($e) — please check your connection and try again.',
       );
     }
   }

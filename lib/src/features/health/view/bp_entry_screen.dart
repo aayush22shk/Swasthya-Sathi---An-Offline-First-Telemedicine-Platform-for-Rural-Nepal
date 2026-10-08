@@ -72,10 +72,6 @@ class _BPEntryScreenState extends State<BPEntryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final sys = int.tryParse(_systolicCtrl.text);
-    final dia = int.tryParse(_diastolicCtrl.text);
-    final showPreview = sys != null && dia != null;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FB),
       appBar: AppBar(
@@ -91,35 +87,15 @@ class _BPEntryScreenState extends State<BPEntryScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // BP Preview Card
-              if (showPreview)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 20),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: _bpColor(sys, dia).withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: _bpColor(sys, dia).withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.monitor_heart_rounded, color: _bpColor(sys, dia), size: 32),
-                      const SizedBox(width: 16),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('$sys / $dia mmHg', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _bpColor(sys, dia))),
-                          Text(_bpCategory(sys, dia), style: TextStyle(fontSize: 13, color: _bpColor(sys, dia), fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-              // Input Card
+              // Input Card (Always First to maintain focus)
               Container(
+                key: const ValueKey('bp_input_card'),
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: const [BoxShadow(color: Color(0x08000000), blurRadius: 12, offset: Offset(0, 4))]),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: const [BoxShadow(color: Color(0x08000000), blurRadius: 12, offset: Offset(0, 4))],
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -127,9 +103,9 @@ class _BPEntryScreenState extends State<BPEntryScreen> {
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        Expanded(child: _numField('Systolic', 'Top number', _systolicCtrl, 40, 300, onChanged: (_) => setState(() {}))),
+                        Expanded(child: _numField('Systolic', 'Top number', _systolicCtrl, 40, 300)),
                         const Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('/', style: TextStyle(fontSize: 28, color: Color(0xFF94A3B8), fontWeight: FontWeight.w300))),
-                        Expanded(child: _numField('Diastolic', 'Bottom number', _diastolicCtrl, 20, 200, onChanged: (_) => setState(() {}))),
+                        Expanded(child: _numField('Diastolic', 'Bottom number', _diastolicCtrl, 20, 200)),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -177,6 +153,40 @@ class _BPEntryScreenState extends State<BPEntryScreen> {
                     ),
                   ],
                 ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Dynamic Live Preview (positioned below input to prevent focus loss)
+              ListenableBuilder(
+                listenable: Listenable.merge([_systolicCtrl, _diastolicCtrl]),
+                builder: (context, _) {
+                  final sys = int.tryParse(_systolicCtrl.text);
+                  final dia = int.tryParse(_diastolicCtrl.text);
+                  if (sys == null || dia == null) return const SizedBox.shrink();
+
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: _bpColor(sys, dia).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: _bpColor(sys, dia).withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.monitor_heart_rounded, color: _bpColor(sys, dia), size: 28),
+                        const SizedBox(width: 14),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('$sys / $dia mmHg', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _bpColor(sys, dia))),
+                            Text(_bpCategory(sys, dia), style: TextStyle(fontSize: 12, color: _bpColor(sys, dia), fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
 
               const SizedBox(height: 24),

@@ -425,43 +425,30 @@ class _OngoingCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _ActionButton(
-                        label: 'End Call',
-                        icon: Icons.call_end_rounded,
-                        backgroundColor: const Color(0xFFFEF2F2),
-                        textColor: const Color(0xFFEF4444),
-                        iconColor: const Color(0xFFEF4444),
-                        onTap: () {},
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _ActionButton(
-                        label: 'Rejoin',
-                        icon: Icons.video_call_rounded,
-                        backgroundColor: const Color(0xFF0072FF),
-                        textColor: Colors.white,
-                        iconColor: Colors.white,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ChatScreen(
-                                doctorName: model.doctorName,
-                                specialty: model.specialty,
-                                avatarUrl: model.avatarUrl,
-                                consultationId: model.consultationId,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                SizedBox(
+                  width: double.infinity,
+                  child: _ActionButton(
+                    label: 'Chat with Doctor',
+                    icon: Icons.chat_bubble_rounded,
+                    backgroundColor: const Color(0xFF0072FF),
+                    textColor: Colors.white,
+                    iconColor: Colors.white,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChatScreen(
+                            doctorName: model.doctorName,
+                            specialty: model.specialty,
+                            avatarUrl: model.avatarUrl,
+                            consultationId: model.consultationId,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
+
               ],
             ),
           ),

@@ -1,27 +1,34 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 /// Central API configuration for SwasthyaSathi.
 ///
-/// Change [baseUrl] to match your environment:
-///   - Android Emulator  → http://10.0.2.2:5000
-///   - Physical device   → http://[YOUR_LAN_IP]:5000   e.g. http://192.168.1.5:5000
+/// Automatically switches between:
+///   - Web (Browser)     → http://localhost:5000/api/v1
+///   - Mobile / LAN      → http://10.10.9.4:5000/api/v1 (or local LAN IP)
 ///   - Production        → https://api.swasthyasathi.np
 class ApiConstants {
   ApiConstants._();
 
   // ── Base URL ──────────────────────────────────────────────────────────────
-  static const String baseUrl = 'http://10.10.9.233:5000/api/v1';
+  static String get baseUrl {
+    if (kIsWeb) {
+      return 'http://localhost:5000/api/v1';
+    }
+    return 'http://10.10.9.4:5000/api/v1';
+  }
 
   // ── Auth ──────────────────────────────────────────────────────────────────
-  static const String registerPatient = '$baseUrl/auth/register/patient';
-  static const String registerDoctor  = '$baseUrl/auth/register/doctor';
-  static const String login           = '$baseUrl/auth/login';
+  static String get registerPatient => '$baseUrl/auth/register/patient';
+  static String get registerDoctor  => '$baseUrl/auth/register/doctor';
+  static String get login           => '$baseUrl/auth/login';
 
   // ── Patients & Doctors (profile) ─────────────────────────────────────────
-  static const String patientProfileMe = '$baseUrl/patients/me';
-  static const String doctorProfileMe  = '$baseUrl/doctors/me';
+  static String get patientProfileMe => '$baseUrl/patients/me';
+  static String get doctorProfileMe  => '$baseUrl/doctors/me';
   static String patientById(String id) => '$baseUrl/patients/$id';
 
   // ── Doctors (list + detail) ───────────────────────────────────────────────
-  static const String doctors         = '$baseUrl/doctors';
+  static String get doctors         => '$baseUrl/doctors';
   static String doctorById(String id) => '$baseUrl/doctors/$id';
 
   // ── Scheduling / Slots ────────────────────────────────────────────────────
@@ -31,61 +38,61 @@ class ApiConstants {
       '$baseUrl/scheduling/doctors/$doctorId/slots';
 
   // ── Masters ───────────────────────────────────────────────────────────────
-  static const String specializations = '$baseUrl/masters/specializations';
+  static String get specializations => '$baseUrl/masters/specializations';
 
   // ── Appointments ──────────────────────────────────────────────────────────
-  static const String appointments           = '$baseUrl/appointments';
+  static String get appointments           => '$baseUrl/appointments';
   static String appointmentById(String id)   => '$baseUrl/appointments/$id';
   static String appointmentStatus(String id) => '$baseUrl/appointments/$id/status';
 
   // ── Payments ──────────────────────────────────────────────────────────────
-  static const String paymentsInitiate   = '$baseUrl/payments/initiate';
+  static String get paymentsInitiate   => '$baseUrl/payments/initiate';
   static String paymentVerify(String id) => '$baseUrl/payments/$id/verify';
   static String paymentById(String id)   => '$baseUrl/payments/$id';
 
   // ── Consultations ─────────────────────────────────────────────────────────
-  static const String consultations             = '$baseUrl/consultations';
+  static String get consultations             => '$baseUrl/consultations';
   static String consultationById(String id)     => '$baseUrl/consultations/$id';
   static String consultationMessages(String id) => '$baseUrl/consultations/$id/messages';
 
   // ── Doctor Dashboard (authenticated doctor-specific) ──────────────────────
-  static const String doctorMyPatients      = '$baseUrl/doctors/me/patients';
+  static String get doctorMyPatients      => '$baseUrl/doctors/me/patients';
   static String doctorMyPatientById(String patientId) =>
       '$baseUrl/doctors/me/patients/$patientId';
-  static const String doctorMyPrescriptions = '$baseUrl/doctors/me/prescriptions';
-  static const String doctorMyConversations = '$baseUrl/doctors/me/conversations';
+  static String get doctorMyPrescriptions => '$baseUrl/doctors/me/prescriptions';
+  static String get doctorMyConversations => '$baseUrl/doctors/me/conversations';
 
   // ── Prescriptions ─────────────────────────────────────────────────────────
-  static const String prescriptions                       = '$baseUrl/prescriptions';
+  static String get prescriptions                       => '$baseUrl/prescriptions';
   static String prescriptionById(String id)               => '$baseUrl/prescriptions/$id';
   static String prescriptionsByPatient(String patientId)  =>
       '$baseUrl/prescriptions/patient/$patientId';
 
   // ── Follow-Ups ────────────────────────────────────────────────────────────
-  static const String followUps           = '$baseUrl/follow-ups';
-  static const String followUpsByDoctor   = '$baseUrl/follow-ups/doctor/me';
-  static const String followUpsByPatient  = '$baseUrl/follow-ups/patient/me';
+  static String get followUps           => '$baseUrl/follow-ups';
+  static String get followUpsByDoctor   => '$baseUrl/follow-ups/doctor/me';
+  static String get followUpsByPatient  => '$baseUrl/follow-ups/patient/me';
   static String followUpStatus(String id) => '$baseUrl/follow-ups/$id/status';
 
   // ── Health Data (Blood Pressure, Glucose, Weight, Symptoms, Conditions, Medications) ──
-  static const String healthVitals      = '$baseUrl/health/vitals';
-  static const String healthBP          = '$baseUrl/health/blood-pressure';
-  static const String healthGlucose     = '$baseUrl/health/glucose';
-  static const String healthWeight      = '$baseUrl/health/weight';
-  static const String healthSymptoms    = '$baseUrl/health/symptoms';
-  static const String healthConditions  = '$baseUrl/health/conditions';
-  static const String healthMedications = '$baseUrl/health/medications';
+  static String get healthVitals      => '$baseUrl/health/vitals';
+  static String get healthBP          => '$baseUrl/health/blood-pressure';
+  static String get healthGlucose     => '$baseUrl/health/glucose';
+  static String get healthWeight      => '$baseUrl/health/weight';
+  static String get healthSymptoms    => '$baseUrl/health/symptoms';
+  static String get healthConditions  => '$baseUrl/health/conditions';
+  static String get healthMedications => '$baseUrl/health/medications';
   static String healthConditionById(String id) => '$baseUrl/health/conditions/$id';
   static String healthMedicationById(String id) => '$baseUrl/health/medications/$id';
 
   // ── Health Analysis ────────────────────────────────────────────────────────
-  static const String healthAnalysisSummary = '$baseUrl/health-analysis/summary';
-  static const String healthAnalysisHistory = '$baseUrl/health-analysis/history';
+  static String get healthAnalysisSummary => '$baseUrl/health-analysis/summary';
+  static String get healthAnalysisHistory => '$baseUrl/health-analysis/history';
   static String healthAnalysisById(String id) => '$baseUrl/health-analysis/$id';
 
   // ── AI ────────────────────────────────────────────────────────────────────
-  static const String aiExplain           = '$baseUrl/ai/explain';
-  static const String aiConversations     = '$baseUrl/ai/conversations';
+  static String get aiExplain           => '$baseUrl/ai/explain';
+  static String get aiConversations     => '$baseUrl/ai/conversations';
   static String aiConversationMessages(String id) => '$baseUrl/ai/conversations/$id/messages';
 
   // ── Shared-prefs keys ─────────────────────────────────────────────────────

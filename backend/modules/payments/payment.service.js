@@ -17,7 +17,7 @@ const verifyPayment = async (paymentId, { gateway_txn_id, status = 'success' }) 
 
     const res = await client.query(
       `UPDATE payments
-       SET gateway_txn_id = $1, status = $2, paid_at = CASE WHEN $2 = 'success' THEN now() ELSE NULL END
+       SET gateway_txn_id = $1, status = $2::payment_status, paid_at = CASE WHEN $2::text = 'success' THEN now() ELSE NULL END
        WHERE id = $3
        RETURNING *`,
       [gateway_txn_id || null, status, paymentId]
@@ -41,7 +41,18 @@ const verifyPayment = async (paymentId, { gateway_txn_id, status = 'success' }) 
          VALUES ($1, 'pending', 'confirmed', 'Payment verified successfully.')`,
         [payment.appointment_id]
       );
+
+      // Automatically initialize consultation session for this appointment if not exists
+      const existingConsult = await client.query('SELECT id FROM consultations WHERE appointment_id = $1', [payment.appointment_id]);
+      if (existingConsult.rows.length === 0) {
+        await client.query(
+          `INSERT INTO consultations (appointment_id, video_room_id, started_at)
+           VALUES ($1, $2, now())`,
+          [payment.appointment_id, `room_${payment.appointment_id}`]
+        );
+      }
     }
+
 
     await client.query('COMMIT');
     return payment;

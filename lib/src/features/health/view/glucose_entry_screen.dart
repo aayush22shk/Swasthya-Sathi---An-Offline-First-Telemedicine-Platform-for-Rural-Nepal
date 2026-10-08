@@ -74,7 +74,6 @@ class _GlucoseEntryScreenState extends State<GlucoseEntryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final val = double.tryParse(_glucoseCtrl.text);
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FB),
       appBar: AppBar(title: const Text('Blood Glucose', style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.white, foregroundColor: const Color(0xFF0F172A), elevation: 0),
@@ -84,23 +83,8 @@ class _GlucoseEntryScreenState extends State<GlucoseEntryScreen> {
           key: _formKey,
           child: Column(
             children: [
-              if (val != null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 20),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(color: _categoryColor(val).withValues(alpha: 0.08), borderRadius: BorderRadius.circular(20), border: Border.all(color: _categoryColor(val).withValues(alpha: 0.3))),
-                  child: Row(
-                    children: [
-                      Icon(Icons.water_drop_rounded, color: _categoryColor(val), size: 32),
-                      const SizedBox(width: 16),
-                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('${val.toStringAsFixed(0)} $_unit', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _categoryColor(val))),
-                        Text(_category(val), style: TextStyle(fontSize: 13, color: _categoryColor(val), fontWeight: FontWeight.w600)),
-                      ]),
-                    ],
-                  ),
-                ),
               Container(
+                key: const ValueKey('glucose_input_card'),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: const [BoxShadow(color: Color(0x08000000), blurRadius: 12, offset: Offset(0, 4))]),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -109,7 +93,6 @@ class _GlucoseEntryScreenState extends State<GlucoseEntryScreen> {
                   TextFormField(
                     controller: _glucoseCtrl,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    onChanged: (_) => setState(() {}),
                     decoration: InputDecoration(
                       labelText: 'Glucose Value',
                       suffixText: _unit,
@@ -178,7 +161,37 @@ class _GlucoseEntryScreenState extends State<GlucoseEntryScreen> {
                   ),
                 ]),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              ListenableBuilder(
+                listenable: _glucoseCtrl,
+                builder: (context, _) {
+                  final val = double.tryParse(_glucoseCtrl.text);
+                  if (val == null) return const SizedBox.shrink();
+
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: _categoryColor(val).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: _categoryColor(val).withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.water_drop_rounded, color: _categoryColor(val), size: 28),
+                        const SizedBox(width: 14),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${val.toStringAsFixed(0)} $_unit', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _categoryColor(val))),
+                            Text(_category(val), style: TextStyle(fontSize: 12, color: _categoryColor(val), fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
