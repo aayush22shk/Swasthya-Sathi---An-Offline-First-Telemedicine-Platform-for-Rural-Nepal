@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Reflective Report — Swasthya Sathi</title>
+<style>
+  @page {
+    margin: 2.54cm;
+    size: A4;
+  }
+  body {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 12pt;
+    line-height: 1.6;
+    color: #1a1a1a;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 60px;
+    background: #fff;
+  }
+  h1 {
+    text-align: center;
+    font-size: 20pt;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #000;
+  }
+  h2 {
+    font-size: 16pt;
+    font-weight: bold;
+    margin-top: 30px;
+    margin-bottom: 12px;
+    color: #000;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 4px;
+  }
+  h3 {
+    font-size: 13pt;
+    font-weight: bold;
+    margin-top: 20px;
+    margin-bottom: 8px;
+    color: #222;
+  }
+  p {
+    text-align: justify;
+    margin-bottom: 12px;
+  }
+  .title-page {
+    text-align: center;
+    margin-top: 100px;
+    margin-bottom: 80px;
+  }
+  .title-page h1 {
+    font-size: 24pt;
+    margin-bottom: 30px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .title-page .subtitle {
+    font-size: 16pt;
+    margin-bottom: 20px;
+    font-style: italic;
+    color: #333;
+  }
+  .title-page .meta {
+    font-size: 12pt;
+    margin-top: 40px;
+    line-height: 2;
+  }
+  strong { font-weight: bold; }
+  em { font-style: italic; }
+  ul, ol {
+    margin-bottom: 12px;
+    padding-left: 30px;
+  }
+  li { margin-bottom: 6px; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 11pt;
+  }
+  th, td {
+    border: 1px solid #999;
+    padding: 8px 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background-color: #f0f0f0;
+    font-weight: bold;
+  }
+  hr {
+    border: none;
+    border-top: 2px solid #ccc;
+    margin: 30px 0;
+  }
+  .references p {
+    text-indent: -36px;
+    padding-left: 36px;
+    margin-bottom: 10px;
+  }
+  .word-count {
+    text-align: center;
+    font-style: italic;
+    margin-top: 40px;
+    color: #666;
+  }
+</style>
+</head>
+<body>
+
+<div class="title-page">
+  <h1>Reflective Report</h1>
+  <div class="subtitle">Swasthya Sathi: An Offline-First Telemedicine Platform for Rural Nepal</div>
+  <hr style="width: 40%; margin: 30px auto;">
+  <div class="meta">
+    <strong>Author:</strong> Aayush Man Shakya<br>
+    <strong>Student ID:</strong> 2337692<br>
+    <strong>Programme:</strong> BSc (Hons) Computing<br>
+    <strong>University of Bedfordshire</strong><br>
+    <strong>Department of Computer Science and Technology</strong><br><br>
+    <strong>Date:</strong> October 2026
+  </div>
+</div>
+
+<h2>1. Introduction</h2>
+
+<p>This reflective report documents my personal learning experience, the challenges I encountered, the decisions I made, and the professional growth I achieved while developing <strong>Swasthya Sathi</strong> &mdash; a comprehensive, offline-first telemedicine platform designed to bridge the healthcare accessibility gap in rural Nepal. The project was undertaken as the practical component of my BSc (Hons) Computing dissertation at the University of Bedfordshire.</p>
+
+<p>Throughout this report, I reflect upon both the technical and non-technical aspects of the project lifecycle, drawing upon Gibbs' Reflective Cycle (1988) as a structured framework for analysing my experiences. By doing so, I aim to articulate what went well, what I would do differently in hindsight, and how this project has shaped my competencies as a computing professional.</p>
+
+<h2>2. Project Overview and Initial Motivations</h2>
+
+<h3>2.1 Why This Project?</h3>
+
+<p>The idea for Swasthya Sathi was born from a deeply personal understanding of Nepal's healthcare challenges. Growing up aware of the stark disparities between urban and rural healthcare access &mdash; where the national doctor-to-patient ratio stands at approximately 1:1,700 and is considerably worse in remote districts &mdash; I felt a strong motivation to contribute a technological solution to this problem.</p>
+
+<p>When selecting a dissertation topic, I deliberately chose a project that would not merely be an academic exercise, but one with genuine real-world applicability. I wanted to build something that could, in principle, be deployed and make a tangible difference to people's lives. This personal connection to the problem domain sustained my motivation throughout the many months of development.</p>
+
+<h3>2.2 Scope of What Was Built</h3>
+
+<p>The final system comprises three major components:</p>
+
+<ol>
+  <li><strong>Flutter Cross-Platform Mobile Application</strong> &mdash; featuring patient and doctor dashboards, appointment booking, real-time consultations (video/audio/chat), health monitoring, an urgent care network, and eSewa payment integration.</li>
+  <li><strong>Node.js/Express RESTful API Backend</strong> &mdash; with 17 modular service domains including authentication, scheduling, prescriptions, pharmacy orders, health data management, AI integration, payments, and a comprehensive admin panel; all backed by PostgreSQL with a 500+ line schema.</li>
+  <li><strong>Python FastAPI Health Analytics Microservice</strong> &mdash; providing statistical analysis of blood pressure, glucose, and weight readings using pandas and NumPy, called internally by the Node.js backend.</li>
+</ol>
+
+<p>Additionally, the system integrates <strong>Google Gemini AI</strong> to generate personalised, plain-language health explanations in both English and Nepali, supported by a clinical rule engine aligned to JNC 8 and ADA 2024 guidelines.</p>
+
+<h2>3. Reflection on the Development Process</h2>
+
+<h3>3.1 Methodology: Agile in Practice</h3>
+
+<p>I adopted an Agile methodology with iterative sprints for the development of Swasthya Sathi. Reflecting on this choice, I believe it was the correct approach for a project of this complexity, though my actual practice deviated in some ways from textbook Agile.</p>
+
+<p><strong>What went well:</strong> The iterative nature of Agile allowed me to build and test features incrementally. For example, I started with the authentication module &mdash; implementing patient and doctor registration with NMC (Nepal Medical Council) verification workflows, input validation using express-validator, JWT-based session management, and bcrypt password hashing. Once this foundation was solid, I could build dependent features like appointment scheduling and consultation management on top of it with confidence.</p>
+
+<p><strong>What I would improve:</strong> As a solo developer, I lacked the collaborative elements of Agile such as daily stand-ups, pair programming, and sprint retrospectives with a team. In future projects, even as a solo developer, I would maintain a more formal sprint retrospective log to capture lessons learned at each iteration, rather than relying on memory.</p>
+
+<h3>3.2 Architecture Decisions</h3>
+
+<p>One of the most significant technical decisions I made was adopting a <strong>microservices-inspired architecture</strong> with the Node.js backend orchestrating calls to a separate Python analytics service. This was not a trivial decision &mdash; it introduced network complexity, deployment overhead, and failure-handling requirements (the fallback analytics computed in Node.js when the Python service is unavailable).</p>
+
+<p><strong>Reflecting on this decision:</strong> I initially considered building everything within the Node.js backend. However, I recognised that statistical computations involving trend analysis, moving averages, and correlation coefficients were far more naturally expressed using Python's pandas and NumPy ecosystem. The separation of concerns also meant that the analytics engine could be independently scaled and improved.</p>
+
+<p>In hindsight, this was a sound architectural choice that taught me valuable lessons about service-to-service communication, timeout handling (I set a 15-second timeout on the axios calls to the Python service), and graceful degradation. The fallback mechanism I implemented &mdash; where the Node.js backend computes basic analytics if the Python service is unreachable &mdash; was a crucial lesson in building resilient, production-grade systems.</p>
+
+<h3>3.3 Database Design</h3>
+
+<p>Designing the PostgreSQL schema was one of the most intellectually demanding aspects of the project. The final schema spans 507 lines and includes 30+ tables covering users, patients, doctors, appointments, consultations, prescriptions, pharmacies, payments, reviews, follow-ups, vitals, and health analyses. I made extensive use of PostgreSQL-specific features including custom ENUM types (17 defined), UUID primary keys via pgcrypto, JSONB columns for flexible metadata storage, and comprehensive indexing.</p>
+
+<p><strong>What I learned:</strong> I gained a deep appreciation for normalisation and the importance of referential integrity constraints. For example, the <em>doctor_verifications</em> table links to both doctors and the admin who verified them, with careful ON DELETE policies &mdash; CASCADE for the doctor (if a doctor is removed, their verification records should go too) but SET NULL for the verifier (if an admin is removed, we still want to keep the verification history). These decisions required careful thought about the data lifecycle.</p>
+
+<p><strong>What I would do differently:</strong> In retrospect, I would have invested more time upfront in creating an Entity-Relationship Diagram before writing SQL. While I did plan the schema conceptually, a formal ER diagram would have helped me identify relationship issues earlier and served as better documentation for future developers.</p>
+
+<h2>4. Technical Challenges and How I Overcame Them</h2>
+
+<h3>4.1 AI Integration: Responsible Design with Google Gemini</h3>
+
+<p>Integrating AI into a healthcare context was both the most exciting and the most sobering part of this project. I used Google's Gemini generative AI to provide plain-language health explanations based on pre-computed clinical analytics.</p>
+
+<p><strong>The challenge:</strong> In healthcare, incorrect or misleading AI output could cause genuine harm. I needed to ensure that the AI would never diagnose, prescribe, or override the clinical rule engine's flags.</p>
+
+<p><strong>My solution:</strong> I implemented a multi-layered safety architecture:</p>
+
+<ul>
+  <li><strong>Structured output enforcement</strong> &mdash; I defined a strict JSON response schema (<em>AI_EXPLANATION_SCHEMA</em>) that constrains the LLM's output to specific fields: summary, observations, recommendations, questions for clinician, safety message, and disclaimer.</li>
+  <li><strong>System prompt guardrails</strong> &mdash; The prompt explicitly states "You must NEVER diagnose, prescribe, or change medications" and "You must NEVER override the clinical flags already identified by the system."</li>
+  <li><strong>Output validation</strong> &mdash; After receiving the LLM response, I parse and validate it through <em>validateLLMOutput()</em>, ensuring required fields exist and types are correct.</li>
+  <li><strong>Model fallback chain</strong> &mdash; I implemented a cascade of model candidates, so if one Gemini model fails, the system automatically tries the next.</li>
+  <li><strong>Graceful degradation</strong> &mdash; If no API key is configured, the system returns a safe placeholder explanation rather than failing.</li>
+</ul>
+
+<p><strong>Reflection:</strong> This experience taught me that AI in healthcare requires a fundamentally different approach than AI in consumer applications. The "move fast and break things" philosophy has no place here. I am proud of the defensive architecture I built, and it has shaped my thinking about responsible AI deployment in sensitive domains.</p>
+
+<h3>4.2 Clinical Rule Engine</h3>
+
+<p>I built a clinical rule engine (version 1.0.0) that applies evidence-based thresholds to patient vitals. For blood pressure, the rules align with JNC 8 and ACC/AHA 2017 guidelines, classifying readings across five categories from normal to hypertensive crisis. For glucose, the rules align with ADA 2024 guidelines, detecting both hypoglycaemia and hyperglycaemia with severity levels.</p>
+
+<p><strong>The challenge:</strong> Translating clinical guidelines into deterministic code required careful study of medical literature. I had to ensure that threshold values were accurate, that edge cases were handled (e.g., what if systolic is in Stage 2 range but diastolic is normal?), and that the flag messages were clear without being alarmist.</p>
+
+<p><strong>What I learned:</strong> This was my first experience working at the intersection of software engineering and clinical science. It reinforced the importance of citing authoritative sources (I referenced JNC 8, ACC/AHA 2017, and ADA 2024 guidelines) and maintaining a version number for the rule engine so that changes can be tracked and audited.</p>
+
+<h3>4.3 eSewa Payment Integration</h3>
+
+<p>Integrating eSewa, Nepal's leading digital payment platform, was important for making the platform locally relevant and accessible. Nepal's payment ecosystem is unique &mdash; international gateways like Stripe are not widely used, and local solutions like eSewa, Khalti, and IME Pay dominate. My database schema supports multiple payment gateways (esewa, khalti, ime_pay, connectips, card, cash) to accommodate Nepal's diverse payment landscape.</p>
+
+<p><strong>Reflection:</strong> This integration reinforced my understanding that building for a specific market requires deep knowledge of local infrastructure, regulations, and user behaviours. A telemedicine platform that only supports Stripe would be effectively useless in rural Nepal.</p>
+
+<h3>4.4 Flutter Frontend Challenges</h3>
+
+<p>Building the mobile frontend in Flutter was both rewarding and challenging. I created a comprehensive UI with reusable widget components including a carousel for promotions, a navigation bar, a search bar, doctor cards, and the urgent care banner &mdash; which features a polished gradient design with glowing icons and status badges.</p>
+
+<p><strong>What went well:</strong> Flutter's widget composition model aligned well with my design system approach. Creating the <em>UrgentCareBanner</em> as a self-contained, visually polished component that could be dropped into any screen was satisfying from both a design and engineering perspective.</p>
+
+<p><strong>What I found challenging:</strong> Managing state across multiple screens and ensuring consistent data flow between the frontend and backend API required careful attention. The offline-first architecture added another layer of complexity &mdash; ensuring that data entered while offline would be properly synchronised when connectivity was restored.</p>
+
+<h2>5. Project Management and Time Allocation</h2>
+
+<h3>5.1 Estimation Challenges</h3>
+
+<p>As a relatively inexperienced full-stack developer embarking on a project of this scale, I significantly underestimated the time required for several aspects:</p>
+
+<ul>
+  <li><strong>Database schema design</strong> took approximately three times longer than expected due to the need for iterative refinement.</li>
+  <li><strong>API development</strong> &mdash; building 17 backend modules with proper validation, error handling, and response formatting was more time-consuming than anticipated.</li>
+  <li><strong>AI integration</strong> required substantial research time to understand responsible AI design patterns in healthcare contexts.</li>
+</ul>
+
+<h3>5.2 What I Would Change</h3>
+
+<p>If I were to undertake this project again, I would:</p>
+
+<ol>
+  <li><strong>Start with a more detailed project plan</strong> including risk assessment and contingency time for each sprint.</li>
+  <li><strong>Write tests from the beginning</strong> rather than treating testing as a later activity.</li>
+  <li><strong>Document architectural decisions</strong> in a formal ADR (Architecture Decision Record) format to capture the reasoning behind key technical choices.</li>
+  <li><strong>Seek user feedback earlier</strong> by creating paper prototypes and conducting usability testing with potential users in rural Nepal.</li>
+</ol>
+
+<h2>6. Ethical and Social Reflections</h2>
+
+<h3>6.1 Healthcare Equity</h3>
+
+<p>Working on Swasthya Sathi deepened my understanding of the digital divide in healthcare. The platform's offline-first architecture was a direct response to the reality that many rural Nepali communities have intermittent or no internet access. Designing for these constraints &mdash; rather than assuming reliable connectivity &mdash; was a fundamentally different design philosophy from what is typically taught in computing courses.</p>
+
+<h3>6.2 Data Privacy and Security</h3>
+
+<p>Handling patient health data carries significant ethical responsibilities. I implemented several security measures:</p>
+
+<ul>
+  <li><strong>Password hashing</strong> using bcryptjs to ensure passwords are never stored in plaintext.</li>
+  <li><strong>JWT-based authentication</strong> to secure API endpoints.</li>
+  <li><strong>Role-based access control</strong> ensuring patients can only access their own data, doctors can access data for patients they are treating, and admins have elevated but auditable privileges.</li>
+  <li><strong>Audit logging</strong> &mdash; the <em>audit_logs</em> table records all significant actions with user ID, action type, entity type, entity ID, and metadata.</li>
+</ul>
+
+<p><strong>Reflection:</strong> While I am satisfied with the security measures implemented, I recognise that a production-grade healthcare application would require additional measures such as encryption at rest, HIPAA/NDPR compliance auditing, and regular penetration testing. This project taught me that security in healthcare is not a feature &mdash; it is a fundamental requirement.</p>
+
+<h3>6.3 AI Ethics</h3>
+
+<p>The responsible AI design patterns I implemented &mdash; structured output, system prompt guardrails, output validation, and graceful fallbacks &mdash; reflect a conscious commitment to ethical AI deployment. The system never presents AI-generated content as medical advice, always includes disclaimers, and prominently suggests consulting a doctor.</p>
+
+<p><strong>Reflection:</strong> I believe the approach I took &mdash; using AI to explain pre-computed clinical analytics rather than generating diagnoses &mdash; is the right pattern for healthcare AI at this stage of the technology's maturity. The AI serves as a translator, making complex health data accessible, not as a decision-maker.</p>
+
+<h2>7. Skills Gained and Professional Development</h2>
+
+<h3>7.1 Technical Skills</h3>
+
+<p>This project substantially expanded my technical capabilities:</p>
+
+<table>
+  <thead>
+    <tr><th>Skill Area</th><th>Before Project</th><th>After Project</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Flutter/Dart mobile development</td><td>Basic familiarity</td><td>Proficient &mdash; built complex multi-screen app with custom widgets</td></tr>
+    <tr><td>Node.js/Express backend development</td><td>Moderate</td><td>Confident &mdash; built production-grade API with 17 modules</td></tr>
+    <tr><td>PostgreSQL database design</td><td>Basic SQL knowledge</td><td>Competent &mdash; designed 30+ table schema with advanced features</td></tr>
+    <tr><td>Python FastAPI microservices</td><td>Minimal</td><td>Functional &mdash; built statistical analytics service</td></tr>
+    <tr><td>AI/LLM integration</td><td>No experience</td><td>Competent &mdash; implemented responsible AI patterns with Gemini</td></tr>
+    <tr><td>RESTful API design</td><td>Theoretical</td><td>Practical &mdash; designed versioned, consistent API contracts</td></tr>
+    <tr><td>Payment gateway integration</td><td>No experience</td><td>Practical experience with eSewa integration</td></tr>
+  </tbody>
+</table>
+
+<h3>7.2 Soft Skills</h3>
+
+<p>Beyond technical growth, the project developed several professional competencies:</p>
+
+<ul>
+  <li><strong>Self-management and discipline</strong> &mdash; maintaining consistent progress on a complex, multi-month project without external team structure.</li>
+  <li><strong>Research skills</strong> &mdash; conducting literature reviews on telemedicine, mHealth, and clinical guidelines.</li>
+  <li><strong>Problem decomposition</strong> &mdash; breaking a complex, multi-domain problem into manageable modules.</li>
+  <li><strong>Written communication</strong> &mdash; articulating technical concepts in the thesis and this reflective report.</li>
+</ul>
+
+<h2>8. Comparison with Initial Objectives</h2>
+
+<p>Looking back at my original project objectives, I can assess the degree of achievement:</p>
+
+<table>
+  <thead>
+    <tr><th>Objective</th><th>Status</th><th>Reflection</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Build a cross-platform mobile telemedicine application</td><td>&#10003; Achieved</td><td>Flutter enabled iOS/Android/Web from a single codebase</td></tr>
+    <tr><td>Implement offline-first architecture</td><td>&#9888; Partially achieved</td><td>Architecture designed for offline-first; full offline sync requires further work</td></tr>
+    <tr><td>Create role-based authentication system</td><td>&#10003; Fully achieved</td><td>Patient, Doctor, and Admin roles with NMC verification</td></tr>
+    <tr><td>Build appointment scheduling and consultation management</td><td>&#10003; Achieved</td><td>Multi-modal consultation support implemented</td></tr>
+    <tr><td>Implement health monitoring with clinical flagging</td><td>&#10003; Fully achieved</td><td>BP, glucose, weight tracking with JNC 8/ADA 2024 rule engine</td></tr>
+    <tr><td>Integrate AI-powered health explanations</td><td>&#10003; Achieved</td><td>Gemini AI with responsible design patterns and bilingual support</td></tr>
+    <tr><td>Integrate local payment gateway (eSewa)</td><td>&#10003; Achieved</td><td>eSewa plus support for multiple Nepal-specific gateways</td></tr>
+    <tr><td>Design scalable, maintainable architecture</td><td>&#10003; Achieved</td><td>Modular backend, microservice analytics, comprehensive schema</td></tr>
+  </tbody>
+</table>
+
+<h2>9. Future Development Aspirations</h2>
+
+<p>Reflecting on what Swasthya Sathi could become, several directions excite me:</p>
+
+<ol>
+  <li><strong>Full offline synchronisation</strong> &mdash; implementing a robust sync mechanism using local SQLite storage on the device with conflict resolution when connectivity is restored.</li>
+  <li><strong>Video consultation integration</strong> &mdash; integrating WebRTC or a service like Agora for real-time video/audio consultations directly within the app.</li>
+  <li><strong>Community Health Worker (CHW) module</strong> &mdash; extending the platform for CHWs who serve as healthcare intermediaries in remote villages.</li>
+  <li><strong>Nepali NLP</strong> &mdash; improving the Gemini AI's Nepali language generation quality with fine-tuned prompts and possibly local model adaptations.</li>
+  <li><strong>Deployment and field testing</strong> &mdash; partnering with a rural health post to conduct real-world pilot testing with actual patients and healthcare providers.</li>
+</ol>
+
+<h2>10. Conclusion</h2>
+
+<p>The Swasthya Sathi project has been the most challenging and rewarding academic experience of my undergraduate degree. It pushed me far beyond my comfort zone &mdash; from designing complex database schemas to implementing clinical rule engines, from building polished mobile interfaces to integrating AI responsibly in a healthcare context.</p>
+
+<p>The project reinforced my belief that technology, when thoughtfully designed with the end user's context in mind, can be a powerful force for social good. Building for rural Nepal &mdash; with its unique constraints of limited connectivity, local payment ecosystems, bilingual requirements, and healthcare workforce shortages &mdash; demanded a level of empathy and contextual awareness that purely technical projects do not.</p>
+
+<p>I am particularly proud of three aspects: the responsible AI architecture that prioritises safety over sophistication; the comprehensive database design that models the full complexity of a telemedicine ecosystem; and the clinical rule engine that translates evidence-based medical guidelines into actionable code.</p>
+
+<p>Going forward, I carry with me not just the technical skills I have gained, but a deepened understanding of the ethical dimensions of healthcare technology and the importance of designing for inclusion. Swasthya Sathi is not just a dissertation project &mdash; it represents a vision of equitable healthcare access that I am committed to pursuing beyond the boundaries of this academic programme.</p>
+
+<h2>References</h2>
+
+<div class="references">
+  <p>American Diabetes Association Professional Practice Committee (2024) 'Standards of Care in Diabetes&mdash;2024', <em>Diabetes Care</em>, 47(Supplement 1).</p>
+  <p>Express.js Documentation (2024) <em>Express &mdash; Node.js web application framework</em>. Available at: https://expressjs.com (Accessed: September 2026).</p>
+  <p>Flutter Documentation (2024) <em>Flutter &mdash; Build apps for any screen</em>. Available at: https://flutter.dev (Accessed: September 2026).</p>
+  <p>Gibbs, G. (1988) <em>Learning by Doing: A Guide to Teaching and Learning Methods</em>. Oxford: Further Education Unit, Oxford Polytechnic.</p>
+  <p>Google (2024) <em>Gemini API Documentation</em>. Available at: https://ai.google.dev (Accessed: September 2026).</p>
+  <p>James, P.A. et al. (2014) '2014 Evidence-Based Guideline for the Management of High Blood Pressure in Adults (JNC 8)', <em>JAMA</em>, 311(5), pp. 507&ndash;520.</p>
+  <p>Ministry of Health and Population, Nepal (2022) <em>Annual Report 2021/22</em>. Kathmandu: Government of Nepal.</p>
+  <p>PostgreSQL Documentation (2024) <em>PostgreSQL: The World's Most Advanced Open Source Relational Database</em>. Available at: https://www.postgresql.org (Accessed: September 2026).</p>
+  <p>Whelton, P.K. et al. (2018) '2017 ACC/AHA/AAPA/ABC/ACPM/AGS/APhA/ASH/ASPC/NMA/PCNA Guideline for the Prevention, Detection, Evaluation, and Management of High Blood Pressure in Adults', <em>Journal of the American College of Cardiology</em>, 71(19), pp. e127&ndash;e248.</p>
+  <p>World Health Organization (2019) <em>WHO Guideline: Recommendations on Digital Interventions for Health System Strengthening</em>. Geneva: WHO.</p>
+</div>
+
+<p class="word-count"><em>Word Count: approximately 3,200 words</em></p>
+
+</body>
+</html>

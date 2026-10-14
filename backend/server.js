@@ -47,6 +47,16 @@ app.use((req, res, next) => {
 // Routes
 // ---------------------------------------------------------------------------
 
+// Root endpoint info
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'SwasthyaSathi Backend API is running.',
+    api_docs: 'Endpoints are mounted under /api/v1',
+    frontend_url: 'http://localhost:3000',
+  });
+});
+
 // Health check
 app.get('/api/v1/health', (req, res) => {
   sendSuccess(res, 200, 'SwasthyaSathi API is healthy.', {
