@@ -36,9 +36,10 @@ class ChatMessageModel {
   bool get isDoctor => senderRole == 'doctor';
 
   String get formattedTime {
-    final h = sentAt.hour > 12 ? sentAt.hour - 12 : (sentAt.hour == 0 ? 12 : sentAt.hour);
-    final m = sentAt.minute.toString().padLeft(2, '0');
-    final period = sentAt.hour >= 12 ? 'PM' : 'AM';
+    final local = sentAt.toLocal();
+    final h = local.hour > 12 ? local.hour - 12 : (local.hour == 0 ? 12 : local.hour);
+    final m = local.minute.toString().padLeft(2, '0');
+    final period = local.hour >= 12 ? 'PM' : 'AM';
     return '$h:$m $period';
   }
 }

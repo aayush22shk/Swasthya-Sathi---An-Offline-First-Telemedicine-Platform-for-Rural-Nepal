@@ -23,8 +23,10 @@ class AuthUser {
   /// Build from the JSON envelope the backend returns:
   /// { token, user: { id, phone, email, role, … }, profile: { full_name, … } }
   factory AuthUser.fromApiResponse(Map<String, dynamic> json) {
-    final user    = json['user']    as Map<String, dynamic>? ?? {};
-    final profile = json['profile'] as Map<String, dynamic>? ?? {};
+    final userRaw = json['user'];
+    final profileRaw = json['profile'];
+    final user = userRaw is Map ? Map<String, dynamic>.from(userRaw) : <String, dynamic>{};
+    final profile = profileRaw is Map ? Map<String, dynamic>.from(profileRaw) : <String, dynamic>{};
 
     return AuthUser(
       id:       (user['id'] ?? '').toString(),

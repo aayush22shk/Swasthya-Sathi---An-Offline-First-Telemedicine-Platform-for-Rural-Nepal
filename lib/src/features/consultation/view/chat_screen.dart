@@ -10,6 +10,7 @@ class ChatScreen extends StatefulWidget {
   final String specialty;
   final String avatarUrl;
   final String? consultationId;
+  final String? appointmentId;
   final String? patientId;
   final String? patientName;
 
@@ -19,6 +20,7 @@ class ChatScreen extends StatefulWidget {
     required this.specialty,
     required this.avatarUrl,
     this.consultationId,
+    this.appointmentId,
     this.patientId,
     this.patientName,
   });
@@ -38,6 +40,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isSending = false;
 
   Map<String, dynamic>? _consultationDetails;
+  String? _activeConsultationId;
 
   @override
   void initState() {
@@ -54,14 +57,24 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _initChat() async {
-    if (widget.consultationId != null && widget.consultationId!.isNotEmpty) {
+    _activeConsultationId = widget.consultationId;
+    if ((_activeConsultationId == null || _activeConsultationId!.isEmpty) &&
+        widget.appointmentId != null &&
+        widget.appointmentId!.isNotEmpty) {
+      try {
+        final res = await _consultationService.startConsultation(widget.appointmentId!);
+        _activeConsultationId = res['id']?.toString();
+      } catch (_) {}
+    }
+
+    if (_activeConsultationId != null && _activeConsultationId!.isNotEmpty) {
       setState(() => _isLoading = true);
       await _fetchBackendMessages();
       await _fetchConsultationDetails();
       if (mounted) setState(() => _isLoading = false);
 
-      // Poll every 4 seconds for new incoming messages from doctor/patient
-      _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      // Poll every 3 seconds for new incoming messages from doctor/patient
+      _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
         _fetchBackendMessages(silent: true);
       });
     } else {
@@ -77,9 +90,9 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _fetchConsultationDetails() async {
-    if (widget.consultationId == null || widget.consultationId!.isEmpty) return;
+    if (_activeConsultationId == null || _activeConsultationId!.isEmpty) return;
     try {
-      final data = await _consultationService.getConsultation(widget.consultationId!);
+      final data = await _consultationService.getConsultation(_activeConsultationId!);
       if (mounted) {
         setState(() {
           _consultationDetails = data;
@@ -89,9 +102,9 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _fetchBackendMessages({bool silent = false}) async {
-    if (widget.consultationId == null || widget.consultationId!.isEmpty) return;
+    if (_activeConsultationId == null || _activeConsultationId!.isEmpty) return;
     try {
-      final list = await _consultationService.getMessages(widget.consultationId!);
+      final list = await _consultationService.getMessages(_activeConsultationId!);
       if (list.isNotEmpty && mounted) {
         final currentUserId = AuthService().currentUser?.id ?? '';
         final currentUserRole = AuthService().currentUser?.role ?? 'patient';
@@ -144,10 +157,10 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     _scrollToBottom();
 
-    if (widget.consultationId != null && widget.consultationId!.isNotEmpty) {
+    if (_activeConsultationId != null && _activeConsultationId!.isNotEmpty) {
       try {
         await _consultationService.sendMessage(
-          widget.consultationId!,
+          _activeConsultationId!,
           message: text,
         );
       } catch (e) {

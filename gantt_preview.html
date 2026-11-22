@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Swasthya Sathi Gantt Chart</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    body {
+      background: #ffffff;
+      padding: 16px;
+      display: inline-block;
+    }
+    .gantt-wrapper {
+      display: flex;
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    
+    /* Left Table Pane */
+    .table-pane {
+      width: 320px;
+      border-right: 2px solid #cbd5e1;
+      background: #ffffff;
+      flex-shrink: 0;
+    }
+    .table-header {
+      height: 56px;
+      display: flex;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+      font-weight: 600;
+      font-size: 13px;
+      color: #334155;
+      align-items: center;
+    }
+    .id-header {
+      width: 50px;
+      height: 100%;
+      padding: 0 10px 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-right: 1px solid #e2e8f0;
+    }
+    .task-header {
+      flex: 1;
+      height: 100%;
+      padding: 0 12px 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .dots-icon {
+      color: #64748b;
+      font-size: 15px;
+      line-height: 1;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .table-row {
+      height: 40px;
+      display: flex;
+      border-bottom: 1px solid #edf2f7;
+      font-size: 13px;
+      color: #1e293b;
+      align-items: center;
+    }
+    .id-cell {
+      width: 50px;
+      height: 100%;
+      padding-left: 14px;
+      display: flex;
+      align-items: center;
+      border-right: 1px solid #edf2f7;
+      color: #475569;
+      font-weight: 500;
+    }
+    .task-cell {
+      flex: 1;
+      height: 100%;
+      padding-left: 16px;
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #1e293b;
+      font-weight: 500;
+    }
+
+    /* Right Timeline Pane */
+    .timeline-pane {
+      position: relative;
+      width: 1050px;
+      background: #ffffff;
+      flex-shrink: 0;
+    }
+    .timeline-header {
+      height: 56px;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+      display: flex;
+      flex-direction: column;
+    }
+    .months-row {
+      height: 28px;
+      display: flex;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 12px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .month-col {
+      display: flex;
+      align-items: center;
+      padding-left: 14px;
+      border-right: 1px solid #cbd5e1;
+      letter-spacing: 0.2px;
+    }
+    .days-row {
+      height: 28px;
+      display: flex;
+      font-size: 12px;
+      font-weight: 600;
+      color: #334155;
+    }
+    .day-col {
+      width: 70px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-right: 1px solid #e2e8f0;
+      flex-shrink: 0;
+    }
+    .day-col:last-child {
+      border-right: none;
+    }
+
+    /* Grid Area */
+    .grid-container {
+      position: relative;
+      width: 1050px;
+      height: 520px; /* 13 rows * 40px */
+    }
+    .grid-horizontal-row {
+      height: 40px;
+      border-bottom: 1px solid #f1f5f9;
+      box-sizing: border-box;
+    }
+    .grid-vertical-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      pointer-events: none;
+    }
+    .v-grid-col {
+      width: 70px;
+      height: 100%;
+      border-right: 1px solid #f1f5f9;
+      flex-shrink: 0;
+    }
+    .v-grid-col.month-end {
+      border-right: 1px solid #cbd5e1;
+    }
+
+    /* SVG Overlay */
+    .svg-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1050px;
+      height: 520px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="gantt-wrapper">
+    <!-- Left Table -->
+    <div class="table-pane">
+      <div class="table-header">
+        <div class="id-header">ID <span class="dots-icon">&#8942;</span></div>
+        <div class="task-header">Task Name <span class="dots-icon">&#8942;</span></div>
+      </div>
+      <div class="table-row"><div class="id-cell">1</div><div class="task-cell">Backend & Environment Setup</div></div>
+      <div class="table-row"><div class="id-cell">2</div><div class="task-cell">Mobile Scaffolding & Patient UI</div></div>
+      <div class="table-row"><div class="id-cell">3</div><div class="task-cell">Offline Data & Edge ML Integration</div></div>
+      <div class="table-row"><div class="id-cell">4</div><div class="task-cell">WHO Protocol & Intervention Sys.</div></div>
+      <div class="table-row"><div class="id-cell">5</div><div class="task-cell">Doctor Web Dashboard (React)</div></div>
+      <div class="table-row"><div class="id-cell">6</div><div class="task-cell">RBAC, Security & Data Encryption</div></div>
+      <div class="table-row"><div class="id-cell">7</div><div class="task-cell">Integration & UI Refinement</div></div>
+      <div class="table-row"><div class="id-cell">8</div><div class="task-cell">App Feature Completion</div></div>
+      <div class="table-row"><div class="id-cell">9</div><div class="task-cell">Asynchronous Syncing & Conflict</div></div>
+      <div class="table-row"><div class="id-cell">10</div><div class="task-cell">System & Network Jitter Testing</div></div>
+      <div class="table-row"><div class="id-cell">11</div><div class="task-cell">Usability Survey</div></div>
+      <div class="table-row"><div class="id-cell">12</div><div class="task-cell">Technical Documentation & Manuals</div></div>
+      <div class="table-row"><div class="id-cell">13</div><div class="task-cell">Final Submission & Project Demo</div></div>
+    </div>
+
+    <!-- Right Timeline -->
+    <div class="timeline-pane">
+      <div class="timeline-header">
+        <div class="months-row">
+          <div class="month-col" style="width: 350px;">2026-09</div>
+          <div class="month-col" style="width: 280px;">2026-10</div>
+          <div class="month-col" style="width: 350px;">2026-11</div>
+          <div class="month-col" style="width: 70px; border-right: none;">2026-12</div>
+        </div>
+        <div class="days-row">
+          <div class="day-col">31</div>
+          <div class="day-col">06</div>
+          <div class="day-col">13</div>
+          <div class="day-col">20</div>
+          <div class="day-col">27</div>
+          <div class="day-col">04</div>
+          <div class="day-col">11</div>
+          <div class="day-col">18</div>
+          <div class="day-col">25</div>
+          <div class="day-col">01</div>
+          <div class="day-col">08</div>
+          <div class="day-col">15</div>
+          <div class="day-col">22</div>
+          <div class="day-col">29</div>
+          <div class="day-col">06</div>
+        </div>
+      </div>
+
+      <div class="grid-container">
+        <!-- Horizontal grid guide rows -->
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+
+        <!-- Vertical grid column lines -->
+        <div class="grid-vertical-bg">
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col month-end"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col month-end"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col month-end"></div>
+          <div class="v-grid-col"></div>
+        </div>
+
+        <!-- SVG Visual Layer (Bars & Dependency Links) -->
+        <svg class="svg-canvas" viewBox="0 0 1050 520">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#0084ff" />
+            </marker>
+          </defs>
+
+          <!-- Row 1: Backend Setup (Electric Purple) [Sep 06 - Sep 12] -->
+          <rect x="85" y="8" width="80" height="24" rx="5" fill="#7a00ff" />
+
+          <!-- Row 2: Mobile Scaffolding (Azure Blue) [Sep 13 - Sep 20] -->
+          <rect x="175" y="48" width="80" height="24" rx="5" fill="#0084ff" />
+
+          <!-- Row 3: Offline Data & Edge ML (Vivid Orange) [Sep 20 - Sep 27] -->
+          <rect x="265" y="88" width="80" height="24" rx="5" fill="#ff7300" />
+
+          <!-- Row 4: WHO Protocol & Intervention Sys. (Vivid Orange) [Sep 27 - Oct 05] -->
+          <rect x="355" y="128" width="80" height="24" rx="5" fill="#ff7300" />
+
+          <!-- Row 5: Doctor Web Dashboard (React) (Bright Yellow) [Sep 13 - Sep 20] -->
+          <rect x="175" y="168" width="80" height="24" rx="5" fill="#ffeb00" stroke="#d4c800" stroke-width="0.5" />
+
+          <!-- Row 6: RBAC, Security & Data Encryption (Bright Yellow) [Sep 20 - Sep 27] -->
+          <rect x="265" y="208" width="80" height="24" rx="5" fill="#ffeb00" stroke="#d4c800" stroke-width="0.5" />
+
+          <!-- Row 7: Integration & UI Refinement (Azure Blue) [Oct 05 - Oct 15] -->
+          <rect x="445" y="248" width="90" height="24" rx="5" fill="#0084ff" />
+
+          <!-- Row 8: App Feature Completion (Hot Pink / Magenta) [Oct 16 - Oct 24] -->
+          <rect x="545" y="288" width="80" height="24" rx="5" fill="#ff007f" />
+
+          <!-- Row 9: Asynchronous Syncing & Conflict (Hot Pink / Magenta) [Oct 25 - Nov 02] -->
+          <rect x="635" y="328" width="80" height="24" rx="5" fill="#ff007f" />
+
+          <!-- Row 10: System & Network Jitter Testing (Neon Green) [Nov 03 - Nov 11] -->
+          <rect x="725" y="368" width="80" height="24" rx="5" fill="#00e600" />
+
+          <!-- Row 11: Usability Survey (Neon Green) [Nov 12 - Nov 20] -->
+          <rect x="815" y="408" width="80" height="24" rx="5" fill="#00e600" />
+
+          <!-- Row 12: Technical Documentation & Manuals (Electric Purple) [Nov 21 - Nov 29] -->
+          <rect x="905" y="448" width="80" height="24" rx="5" fill="#7a00ff" />
+
+          <!-- Row 13: Final Submission & Project Demo (Bright Yellow) [Nov 30 - Dec 07] -->
+          <rect x="995" y="488" width="50" height="24" rx="5" fill="#ffeb00" stroke="#d4c800" stroke-width="0.5" />
+
+          <!-- DEPENDENCY CONNECTING ARROWS -->
+          <!-- 1 -> 2: Leaves (165, 20), goes right to 170, down to 60, right to 175 with arrow -->
+          <path d="M 165 20 L 170 20 L 170 60 L 174 60" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 1 -> 5: Leaves (165, 20), goes right to 170, down to 180, right to 175 with arrow -->
+          <path d="M 165 20 L 170 20 L 170 180 L 174 180" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 2 -> 3: Leaves (255, 60), goes right to 260, down to 100, right to 264 with arrow -->
+          <path d="M 255 60 L 260 60 L 260 100 L 264 100" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 3 -> 4: Leaves (345, 100), goes right to 350, down to 140, right to 354 with arrow -->
+          <path d="M 345 100 L 350 100 L 350 140 L 354 140" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 5 -> 6: Leaves (255, 180), goes right to 260, down to 220, right to 264 with arrow -->
+          <path d="M 255 180 L 260 180 L 260 220 L 264 220" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 4 -> 7: Leaves (435, 140), goes right to 440, down to 260, right to 444 with arrow -->
+          <path d="M 435 140 L 440 140 L 440 260 L 444 260" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 6 -> 7: Leaves (345, 220), goes right to 440, down to 260 -->
+          <path d="M 345 220 L 440 220 L 440 260" fill="none" stroke="#0084ff" stroke-width="1.8" />
+
+          <!-- 7 -> 8: Leaves (535, 260), goes right to 540, down to 300, right to 544 with arrow -->
+          <path d="M 535 260 L 540 260 L 540 300 L 544 300" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 8 -> 9: Leaves (625, 300), goes right to 630, down to 340, right to 634 with arrow -->
+          <path d="M 625 300 L 630 300 L 630 340 L 634 340" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 9 -> 10: Leaves (715, 340), goes right to 720, down to 380, right to 724 with arrow -->
+          <path d="M 715 340 L 720 340 L 720 380 L 724 380" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 10 -> 11: Leaves (805, 380), goes right to 810, down to 420, right to 814 with arrow -->
+          <path d="M 805 380 L 810 380 L 810 420 L 814 420" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 11 -> 12: Leaves (895, 420), goes right to 900, down to 460, right to 904 with arrow -->
+          <path d="M 895 420 L 900 420 L 900 460 L 904 460" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 12 -> 13: Leaves (985, 460), goes right to 990, down to 500, right to 994 with arrow -->
+          <path d="M 985 460 L 990 460 L 990 500 L 994 500" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+        </svg>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

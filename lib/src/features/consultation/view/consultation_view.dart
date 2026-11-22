@@ -442,6 +442,7 @@ class _OngoingCard extends StatelessWidget {
                             specialty: model.specialty,
                             avatarUrl: model.avatarUrl,
                             consultationId: model.consultationId,
+                            appointmentId: model.id,
                           ),
                         ),
                       );
@@ -609,6 +610,7 @@ class _ScheduledCard extends StatelessWidget {
                           specialty: model.specialty,
                           avatarUrl: model.avatarUrl,
                           consultationId: model.consultationId,
+                            appointmentId: model.id,
                         ),
                       ),
                     );

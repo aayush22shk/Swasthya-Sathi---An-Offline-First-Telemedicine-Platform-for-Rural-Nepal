@@ -105,6 +105,7 @@ const listAppointments = async ({ patient_id, doctor_id, status, limit = 50, off
        a.reason_for_visit,
        a.created_at,
        a.updated_at,
+        c.id           AS consultation_id,
 
        -- Patient fields
        p.full_name    AS patient_name,
@@ -133,6 +134,7 @@ const listAppointments = async ({ patient_id, doctor_id, status, limit = 50, off
      JOIN patients p  ON p.id = a.patient_id
      JOIN users u_pat ON u_pat.id = p.user_id
      JOIN doctors d   ON d.id = a.doctor_id
+      LEFT JOIN consultations c ON c.appointment_id = a.id
      ${where}
      ORDER BY a.scheduled_at DESC
      LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
@@ -146,6 +148,7 @@ const getAppointmentById = async (appointmentId) => {
   const aptRes = await pool.query(
     `SELECT
        a.*,
+        c.id           AS consultation_id,
 
        -- Patient
        p.full_name    AS patient_name,
@@ -174,6 +177,7 @@ const getAppointmentById = async (appointmentId) => {
      JOIN patients p  ON p.id = a.patient_id
      JOIN users u_pat ON u_pat.id = p.user_id
      JOIN doctors d   ON d.id = a.doctor_id
+      LEFT JOIN consultations c ON c.appointment_id = a.id
      WHERE a.id = $1`,
     [appointmentId]
   );

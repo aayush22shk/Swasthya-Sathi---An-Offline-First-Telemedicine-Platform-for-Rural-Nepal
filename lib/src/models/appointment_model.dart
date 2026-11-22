@@ -32,6 +32,7 @@ enum AppointmentStatus {
     'confirmed': 0xFF10B981, // emerald
     'completed': 0xFF0072FF, // blue
     'cancelled': 0xFFEF4444, // red
+    'noShow':    0xFF94A3B8, // slate
     'no_show':   0xFF94A3B8, // slate
   };
 

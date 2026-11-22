@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Swasthya Sathi Actual / Real Gantt Chart</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    body {
+      background: #ffffff;
+      padding: 16px;
+      display: inline-block;
+    }
+    .gantt-wrapper {
+      display: flex;
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    
+    /* Left Table Pane */
+    .table-pane {
+      width: 320px;
+      border-right: 2px solid #cbd5e1;
+      background: #ffffff;
+      flex-shrink: 0;
+    }
+    .table-header {
+      height: 56px;
+      display: flex;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+      font-weight: 600;
+      font-size: 13px;
+      color: #334155;
+      align-items: center;
+    }
+    .id-header {
+      width: 50px;
+      height: 100%;
+      padding: 0 10px 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-right: 1px solid #e2e8f0;
+    }
+    .task-header {
+      flex: 1;
+      height: 100%;
+      padding: 0 12px 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .dots-icon {
+      color: #64748b;
+      font-size: 15px;
+      line-height: 1;
+      font-weight: bold;
+    }
+    .table-row {
+      height: 40px;
+      display: flex;
+      border-bottom: 1px solid #edf2f7;
+      font-size: 13px;
+      color: #1e293b;
+      align-items: center;
+    }
+    .id-cell {
+      width: 50px;
+      height: 100%;
+      padding-left: 14px;
+      display: flex;
+      align-items: center;
+      border-right: 1px solid #edf2f7;
+      color: #475569;
+      font-weight: 500;
+    }
+    .task-cell {
+      flex: 1;
+      height: 100%;
+      padding-left: 16px;
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #1e293b;
+      font-weight: 500;
+    }
+
+    /* Right Timeline Pane */
+    .timeline-pane {
+      position: relative;
+      width: 1050px;
+      background: #ffffff;
+      flex-shrink: 0;
+    }
+    .timeline-header {
+      height: 56px;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+      display: flex;
+      flex-direction: column;
+    }
+    .months-row {
+      height: 28px;
+      display: flex;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 12px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .month-col {
+      display: flex;
+      align-items: center;
+      padding-left: 14px;
+      border-right: 1px solid #cbd5e1;
+      letter-spacing: 0.2px;
+    }
+    .days-row {
+      height: 28px;
+      display: flex;
+      font-size: 12px;
+      font-weight: 600;
+      color: #334155;
+    }
+    .day-col {
+      width: 70px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-right: 1px solid #e2e8f0;
+      flex-shrink: 0;
+    }
+    .day-col:last-child {
+      border-right: none;
+    }
+
+    /* Grid Area */
+    .grid-container {
+      position: relative;
+      width: 1050px;
+      height: 520px;
+    }
+    .grid-horizontal-row {
+      height: 40px;
+      border-bottom: 1px solid #f1f5f9;
+      box-sizing: border-box;
+    }
+    .grid-vertical-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      pointer-events: none;
+    }
+    .v-grid-col {
+      width: 70px;
+      height: 100%;
+      border-right: 1px solid #f1f5f9;
+      flex-shrink: 0;
+    }
+    .v-grid-col.month-end {
+      border-right: 1px solid #cbd5e1;
+    }
+
+    /* SVG Overlay */
+    .svg-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1050px;
+      height: 520px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="gantt-wrapper">
+    <!-- Left Table -->
+    <div class="table-pane">
+      <div class="table-header">
+        <div class="id-header">ID <span class="dots-icon">&#8942;</span></div>
+        <div class="task-header">Task Name <span class="dots-icon">&#8942;</span></div>
+      </div>
+      <div class="table-row"><div class="id-cell">1</div><div class="task-cell">Flutter Scaffolding & Setup</div></div>
+      <div class="table-row"><div class="id-cell">2</div><div class="task-cell">Patient UI & Dashboards (v1 & v2)</div></div>
+      <div class="table-row"><div class="id-cell">3</div><div class="task-cell">PostgreSQL Schema & Node REST APIs</div></div>
+      <div class="table-row"><div class="id-cell">4</div><div class="task-cell">JWT Auth, RBAC & User Mgmt</div></div>
+      <div class="table-row"><div class="id-cell">5</div><div class="task-cell">Doctor Dashboard & Scheduling</div></div>
+      <div class="table-row"><div class="id-cell">6</div><div class="task-cell">Appointment Booking & Conflict Logic</div></div>
+      <div class="table-row"><div class="id-cell">7</div><div class="task-cell">Consultation Chat & Digital Rx</div></div>
+      <div class="table-row"><div class="id-cell">8</div><div class="task-cell">Vitals & Gemini LLM AI Explainer</div></div>
+      <div class="table-row"><div class="id-cell">9</div><div class="task-cell">Python Analytics (Trend Slopes)</div></div>
+      <div class="table-row"><div class="id-cell">10</div><div class="task-cell">eSewa Payment Gateway Integration</div></div>
+      <div class="table-row"><div class="id-cell">11</div><div class="task-cell">Offline-First Caching & Resilience</div></div>
+      <div class="table-row"><div class="id-cell">12</div><div class="task-cell">System Revisions & Jitter Testing</div></div>
+      <div class="table-row"><div class="id-cell">13</div><div class="task-cell">Documentation & Presentation Deck</div></div>
+    </div>
+
+    <!-- Right Timeline -->
+    <div class="timeline-pane">
+      <div class="timeline-header">
+        <div class="months-row">
+          <div class="month-col" style="width: 350px;">2026-09</div>
+          <div class="month-col" style="width: 280px;">2026-10</div>
+          <div class="month-col" style="width: 350px;">2026-11</div>
+          <div class="month-col" style="width: 70px; border-right: none;">2026-12</div>
+        </div>
+        <div class="days-row">
+          <div class="day-col">31</div>
+          <div class="day-col">06</div>
+          <div class="day-col">13</div>
+          <div class="day-col">20</div>
+          <div class="day-col">27</div>
+          <div class="day-col">04</div>
+          <div class="day-col">11</div>
+          <div class="day-col">18</div>
+          <div class="day-col">25</div>
+          <div class="day-col">01</div>
+          <div class="day-col">08</div>
+          <div class="day-col">15</div>
+          <div class="day-col">22</div>
+          <div class="day-col">29</div>
+          <div class="day-col">06</div>
+        </div>
+      </div>
+
+      <div class="grid-container">
+        <!-- Horizontal grid guide rows -->
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+        <div class="grid-horizontal-row"></div>
+
+        <!-- Vertical grid column lines -->
+        <div class="grid-vertical-bg">
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col month-end"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col month-end"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col"></div>
+          <div class="v-grid-col month-end"></div>
+          <div class="v-grid-col"></div>
+        </div>
+
+        <!-- SVG Visual Layer (Actual Bars & Dependency Flow) -->
+        <svg class="svg-canvas" viewBox="0 0 1050 520">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#0084ff" />
+            </marker>
+          </defs>
+
+          <!-- 1. Flutter Scaffolding: Sep 13 to Sep 16 (Blue) -->
+          <rect x="140" y="8" width="50" height="24" rx="5" fill="#0084ff" />
+
+          <!-- 2. Patient UI & Dashboard: Sep 15 to Sep 19 (Blue) -->
+          <rect x="160" y="48" width="60" height="24" rx="5" fill="#0084ff" />
+
+          <!-- 3. PostgreSQL Schema & Node REST APIs: Sep 20 to Sep 24 (Purple) -->
+          <rect x="210" y="88" width="65" height="24" rx="5" fill="#7a00ff" />
+
+          <!-- 4. JWT Auth, RBAC & User Mgmt: Sep 21 to Sep 26 (Purple) -->
+          <rect x="220" y="128" width="70" height="24" rx="5" fill="#7a00ff" />
+
+          <!-- 5. Doctor Dashboard & Scheduling: Sep 23 to Sep 28 (Yellow) -->
+          <rect x="240" y="168" width="75" height="24" rx="5" fill="#ffeb00" stroke="#d4c800" stroke-width="0.5" />
+
+          <!-- 6. Appointment Booking & Conflict Logic: Sep 27 to Sep 30 (Yellow) -->
+          <rect x="280" y="208" width="55" height="24" rx="5" fill="#ffeb00" stroke="#d4c800" stroke-width="0.5" />
+
+          <!-- 7. Consultation Chat & Digital Rx: Sep 30 to Oct 06 (Azure Blue) -->
+          <rect x="310" y="248" width="85" height="24" rx="5" fill="#0084ff" />
+
+          <!-- 8. Vitals & Gemini LLM AI Explainer: Sep 30 to Oct 14 (Vivid Orange - actual iterative revisions) -->
+          <rect x="310" y="288" width="160" height="24" rx="5" fill="#ff7300" />
+
+          <!-- 9. Python Analytics Microservice: Oct 06 to Oct 16 (Vivid Orange) -->
+          <rect x="370" y="328" width="115" height="24" rx="5" fill="#ff7300" />
+
+          <!-- 10. eSewa Payment Gateway: Oct 10 to Oct 20 (Hot Pink / Magenta) -->
+          <rect x="410" y="368" width="105" height="24" rx="5" fill="#ff007f" />
+
+          <!-- 11. Offline-First Caching & Resilience: Oct 18 to Oct 28 (Hot Pink / Magenta) -->
+          <rect x="490" y="408" width="110" height="24" rx="5" fill="#ff007f" />
+
+          <!-- 12. System Revisions & Jitter Testing: Oct 28 to Nov 08 (Neon Green) -->
+          <rect x="590" y="448" width="130" height="24" rx="5" fill="#00e600" />
+
+          <!-- 13. Documentation & Presentation Deck: Nov 05 to Nov 22 (Bright Yellow / Gold) -->
+          <rect x="670" y="488" width="180" height="24" rx="5" fill="#ffeb00" stroke="#d4c800" stroke-width="0.5" />
+
+          <!-- REAL DEPENDENCY CONNECTING ARROWS -->
+          <!-- 1 -> 2: Flutter Scaffolding to Patient Dashboard -->
+          <path d="M 190 20 L 195 20 L 195 40 L 155 40 L 155 60 L 158 60" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 2 -> 3: Patient Dashboard to Backend & DB -->
+          <path d="M 220 60 L 225 60 L 225 80 L 205 80 L 205 100 L 208 100" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 3 -> 4: Backend to Auth & RBAC -->
+          <path d="M 275 100 L 280 100 L 280 120 L 215 120 L 215 140 L 218 140" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 4 -> 5: Auth to Doctor Dashboard & Scheduling -->
+          <path d="M 290 140 L 300 140 L 300 160 L 235 160 L 235 180 L 238 180" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 5 -> 6: Doctor Scheduling to Appointment Booking -->
+          <path d="M 315 180 L 325 180 L 325 200 L 275 200 L 275 220 L 278 220" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 6 -> 7: Appointments to Consultation & Rx -->
+          <path d="M 335 220 L 345 220 L 345 240 L 305 240 L 305 260 L 308 260" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 7 -> 8: Rx & Vitals to Gemini LLM AI Explainer -->
+          <path d="M 350 272 L 350 286" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 7 -> 9: Consultation to Python Analytics -->
+          <path d="M 395 260 L 405 260 L 405 320 L 365 320 L 365 340 L 368 340" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 6 -> 10: Appointment Booking to eSewa Payment Gateway -->
+          <path d="M 335 220 L 415 220 L 415 360 L 405 360 L 405 380 L 408 380" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 8,9 -> 11: Vitals & Gemini to Offline-First Caching -->
+          <path d="M 470 300 L 495 300 L 495 400 L 485 400 L 485 420 L 488 420" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 11 -> 12: Offline Caching to Testing & Revisions -->
+          <path d="M 600 420 L 610 420 L 610 440 L 585 440 L 585 460 L 588 460" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+
+          <!-- 12 -> 13: Testing to Documentation & Presentation Deck -->
+          <path d="M 720 460 L 730 460 L 730 480 L 665 480 L 665 500 L 668 500" fill="none" stroke="#0084ff" stroke-width="1.8" marker-end="url(#arrow)" />
+        </svg>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
+
