@@ -9,6 +9,8 @@ import '../../../services/conv_prescription_service.dart';
 import '../../../services/diagnosis_service.dart';
 import 'prescription_detail_screen.dart';
 import 'diagnosis_detail_screen.dart';
+import '../../../cds/clinical_briefing_card.dart';
+import '../../../cds/longitudinal_summary_service.dart';
 
 /// Doctor-side persistent chat screen with Prescription & Diagnosis attachments.
 class DoctorChatScreen extends StatefulWidget {
@@ -53,6 +55,7 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
   bool _isLoading = true;
   bool _isSending = false;
   String? _resolvedConvId; // resolved from widget.conversationId OR getOrCreate
+  LongitudinalSummary? _clinicalSummary;
 
   String get _convId => _resolvedConvId ?? widget.conversationId ?? '';
   Timer? _pollingTimer;
@@ -94,6 +97,7 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
 
     // 2. Load history
     await _fetchMessages();
+    _loadClinicalSummary();
     if (mounted) {
       setState(() => _isLoading = false);
       _scrollToBottom();
@@ -101,6 +105,22 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
         _fetchMessages(silent: true);
       });
     }
+  }
+
+  Future<void> _loadClinicalSummary() async {
+    try {
+      final dxList = await _dxService.getByPatient(widget.patientId);
+      final rxList = await _rxService.getByPatient(widget.patientId);
+      if (mounted) {
+        setState(() {
+          _clinicalSummary = LongitudinalSummaryService.generateSummary(
+            patientId: widget.patientId,
+            diagnoses: dxList,
+            prescriptions: rxList,
+          );
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _fetchMessages({bool silent = false}) async {
@@ -326,6 +346,7 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
                                     if (mounted) {
                                       Navigator.pop(ctx);
                                       await _fetchMessages();
+                                      _loadClinicalSummary();
                                       _scrollToBottom();
                                     }
                                   } catch (e) {
@@ -484,6 +505,7 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
                                     if (mounted) {
                                       Navigator.pop(ctx);
                                       await _fetchMessages();
+                                      _loadClinicalSummary();
                                       _scrollToBottom();
                                     }
                                   } catch (e) {
@@ -599,6 +621,8 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
       ),
       body: Column(
         children: [
+          if (_clinicalSummary != null)
+            ClinicalBriefingCard(summary: _clinicalSummary!),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFF0072FF)))

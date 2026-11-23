@@ -59,4 +59,19 @@ class ConvPrescriptionService {
     }
     throw Exception(body['message'] ?? 'Failed to load prescription.');
   }
+
+  Future<List<ConvPrescriptionModel>> getByPatient(String patientId) async {
+    final token = _token();
+    final res = await http.get(
+      Uri.parse('$_base/conv-prescriptions/patient/$patientId'),
+      headers: _headers(token),
+    );
+    final body = jsonDecode(res.body);
+    if (res.statusCode == 200 && body['success'] == true) {
+      return (body['data'] as List)
+          .map((item) => ConvPrescriptionModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+    return [];
+  }
 }

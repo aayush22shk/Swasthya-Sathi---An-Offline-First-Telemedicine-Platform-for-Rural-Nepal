@@ -63,4 +63,19 @@ class DiagnosisService {
     }
     throw Exception(body['message'] ?? 'Failed to load diagnosis.');
   }
+
+  Future<List<DiagnosisModel>> getByPatient(String patientId) async {
+    final token = _token();
+    final res = await http.get(
+      Uri.parse('$_base/diagnosis-results/patient/$patientId'),
+      headers: _headers(token),
+    );
+    final body = jsonDecode(res.body);
+    if (res.statusCode == 200 && body['success'] == true) {
+      return (body['data'] as List)
+          .map((item) => DiagnosisModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+    return [];
+  }
 }
