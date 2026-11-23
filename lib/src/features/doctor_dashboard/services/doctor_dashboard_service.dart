@@ -894,6 +894,42 @@ class DoctorDashboardService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Update doctor profile (photo, bio, fee, etc.)
+  Future<bool> updateDoctorProfile(Map<String, dynamic> data) async {
+    try {
+      final token = await _getToken();
+      if (token == null) return false;
+
+      final meRes = await http.get(
+        Uri.parse(ApiConstants.doctorProfileMe),
+        headers: _authHeaders(token),
+      );
+      if (meRes.statusCode != 200) return false;
+      final meJson = jsonDecode(meRes.body);
+      final doctorId = meJson['data']?['id'] ?? meJson['id'];
+      if (doctorId == null) return false;
+
+      final res = await http.put(
+        Uri.parse(ApiConstants.doctorById(doctorId.toString())),
+        headers: _authHeaders(token),
+        body: jsonEncode(data),
+      );
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final body = jsonDecode(res.body);
+        final updatedData = body['data'] ?? body;
+        final photoUrl = updatedData['profile_photo_url']?.toString();
+        await AuthService().updateUserSession(
+          profilePhotoUrl: photoUrl,
+        );
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   // ── Utilities ─────────────────────────────────────────────────────────────
 
   static String _timeAgo(DateTime dt) {

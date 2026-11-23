@@ -107,6 +107,7 @@ class ApiConstants {
   static const String kBloodGroup  = 'auth_blood_group';
   static const String kAddress     = 'auth_address';
   static const String kAppLanguage = 'auth_app_language';
+  static const String kProfilePhoto = 'auth_profile_photo';
 
   // ── Chat System (Conversations, Prescriptions, Diagnosis) ────────────────
   static String get conversations => '$baseUrl/conversations';

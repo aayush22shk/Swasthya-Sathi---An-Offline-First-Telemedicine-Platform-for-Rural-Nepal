@@ -4,6 +4,7 @@ import '../../../services/profile_service.dart';
 import '../../auth/view/login_view.dart';
 import '../../auth/view/welcome_view.dart';
 import '../models/patient_profile_model.dart';
+import '../widgets/profile_photo_picker_sheet.dart';
 
 class AccountSettingsScreen extends StatefulWidget {
   final PatientProfileModel? profile;
@@ -41,6 +42,46 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
         _currentLanguage = 'English';
       }
     });
+  }
+
+  Future<void> _changeProfilePhoto() async {
+    final profile = _profileService.currentProfile ?? widget.profile;
+    final newUrl = await ProfilePhotoPickerSheet.show(
+      context,
+      currentPhotoUrl: profile?.profilePhotoUrl,
+    );
+    if (newUrl == null) return;
+
+    final urlToSave = newUrl.trim().isEmpty ? '' : newUrl.trim();
+    if (profile != null && profile.id.isNotEmpty) {
+      try {
+        final updated = await _profileService.updatePatientProfile(
+          patientId: profile.id,
+          data: {'profile_photo_url': urlToSave},
+        );
+        await _authService.updateUserSession(
+          profilePhotoUrl: updated.profilePhotoUrl,
+        );
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile picture updated successfully!'),
+              backgroundColor: Color(0xFF059669),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to update picture: $e'),
+              backgroundColor: const Color(0xFFEF4444),
+            ),
+          );
+        }
+      }
+    }
   }
 
   void _showLanguageSelector() {
@@ -444,6 +485,62 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // -------------------------------------------------------------
+              // 0. PROFILE PICTURE CARD
+              // -------------------------------------------------------------
+              _buildSettingCard(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: const Color(0xFFEFF6FF),
+                          backgroundImage: (profile?.profilePhotoUrl != null && profile!.profilePhotoUrl!.isNotEmpty)
+                              ? NetworkImage(profile.profilePhotoUrl!)
+                              : null,
+                          child: (profile?.profilePhotoUrl == null || profile!.profilePhotoUrl!.isEmpty)
+                              ? const Icon(Icons.person, color: Color(0xFF0072FF), size: 20)
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Profile Picture',
+                          style: TextStyle(
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1E293B),
+                          ),
+                        ),
+                      ],
+                    ),
+                    InkWell(
+                      onTap: _changeProfilePhoto,
+                      borderRadius: BorderRadius.circular(10.0),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10.0),
+                          border: Border.all(color: const Color(0xFFE58A1F), width: 1.5),
+                        ),
+                        child: const Text(
+                          'Change',
+                          style: TextStyle(
+                            fontSize: 14.0,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFE58A1F),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16.0),
+
               // -------------------------------------------------------------
               // 1. CHANGE LANGUAGE CARD
               // -------------------------------------------------------------

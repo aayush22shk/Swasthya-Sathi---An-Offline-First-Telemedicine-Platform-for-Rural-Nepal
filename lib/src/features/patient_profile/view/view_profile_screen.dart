@@ -4,6 +4,7 @@ import '../../../services/profile_service.dart';
 import '../../../services/prescription_service.dart';
 import '../models/patient_profile_model.dart';
 import '../widgets/patient_avatar_widget.dart';
+import '../widgets/profile_photo_picker_sheet.dart';
 import 'account_settings_screen.dart';
 import 'edit_profile_dialog.dart';
 
@@ -65,6 +66,49 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
     final updated = await EditProfileDialog.show(context, _profile!);
     if (updated != null) {
       setState(() => _profile = updated);
+    }
+  }
+
+  Future<void> _changeProfilePhoto() async {
+    if (_profile == null) return;
+    final newUrl = await ProfilePhotoPickerSheet.show(
+      context,
+      currentPhotoUrl: _profile!.profilePhotoUrl,
+    );
+    if (newUrl == null) return; // user cancelled
+
+    final urlToSave = newUrl.trim().isEmpty ? null : newUrl.trim();
+    setState(() => _isLoading = true);
+    try {
+      final updated = await _profileService.updatePatientProfile(
+        patientId: _profile!.id,
+        data: {'profile_photo_url': urlToSave ?? ''},
+      );
+      await _authService.updateUserSession(
+        profilePhotoUrl: updated.profilePhotoUrl,
+      );
+      if (mounted) {
+        setState(() {
+          _profile = updated;
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile picture updated successfully!'),
+            backgroundColor: Color(0xFF059669),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update picture: $e'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
     }
   }
 
@@ -146,6 +190,8 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
                         PatientAvatarWidget(
                           size: 88.0,
                           photoUrl: _profile?.profilePhotoUrl,
+                          showEditBadge: true,
+                          onEditTap: _changeProfilePhoto,
                         ),
                         const SizedBox(width: 18.0),
                         Expanded(

@@ -4,6 +4,7 @@ import '../../../services/auth_service.dart';
 import '../../../services/conversation_service.dart';
 import '../../consultation/view/doctor_chat_screen.dart';
 import '../../patient_dashboard/view/patient_dashboard_view.dart';
+import '../../patient_profile/widgets/profile_photo_picker_sheet.dart';
 import '../models/doctor_dashboard_models.dart';
 import '../services/doctor_dashboard_service.dart';
 
@@ -1347,6 +1348,36 @@ class _DoctorDashboardViewState extends State<DoctorDashboardView> {
   // ===========================================================================
   // TAB 3: PROFILE (Availability and Settings under Profile)
   // ===========================================================================
+  Future<void> _changeDoctorPhoto() async {
+    final user = AuthService().currentUser;
+    final newUrl = await ProfilePhotoPickerSheet.show(
+      context,
+      currentPhotoUrl: user?.profilePhotoUrl,
+    );
+    if (newUrl == null) return;
+
+    final urlToSave = newUrl.trim().isEmpty ? '' : newUrl.trim();
+    final ok = await _service.updateDoctorProfile({'profile_photo_url': urlToSave});
+    if (mounted) {
+      if (ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Doctor profile picture updated!'),
+            backgroundColor: Color(0xFF059669),
+          ),
+        );
+        setState(() {});
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update doctor profile picture.'),
+            backgroundColor: Color(0xFFEF4444),
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildProfileTab() {
     final user = AuthService().currentUser;
     final doctorName = user?.fullName ?? 'Dr. Bikash Sharma';
@@ -1383,16 +1414,48 @@ class _DoctorDashboardViewState extends State<DoctorDashboardView> {
             ),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 32,
-                  backgroundColor: const Color(0xFF0072FF),
-                  child: const Text(
-                    'BS',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                GestureDetector(
+                  onTap: _changeDoctorPhoto,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      CircleAvatar(
+                        radius: 32,
+                        backgroundColor: const Color(0xFF0072FF),
+                        backgroundImage: user?.profilePhotoUrl != null && user!.profilePhotoUrl!.isNotEmpty
+                            ? NetworkImage(user.profilePhotoUrl!)
+                            : null,
+                        child: user?.profilePhotoUrl == null || user!.profilePhotoUrl!.isEmpty
+                            ? Text(
+                                doctorName.trim().isNotEmpty
+                                    ? doctorName.trim().split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase()
+                                    : 'BS',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : null,
+                      ),
+                      Positioned(
+                        right: -2,
+                        bottom: -2,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0072FF),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt_rounded,
+                            size: 13,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 14),

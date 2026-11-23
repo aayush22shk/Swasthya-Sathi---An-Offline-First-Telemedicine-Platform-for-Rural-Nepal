@@ -24,6 +24,9 @@ const updateRules = [
   body('is_available')
     .optional()
     .isBoolean().withMessage('is_available must be a boolean.'),
+  body('profile_photo_url')
+    .optional({ checkFalsy: false })
+    .isString().withMessage('Profile photo URL must be a string.'),
 ];
 
 const listQueryRules = [

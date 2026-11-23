@@ -7,6 +7,7 @@ class AuthUser {
   final String role;          // 'patient' | 'doctor'
   final String token;         // JWT bearer token
   final String? fullName;     // from role-specific profile
+  final String? profilePhotoUrl; // from profile
 
   const AuthUser({
     required this.id,
@@ -15,6 +16,7 @@ class AuthUser {
     required this.role,
     required this.token,
     this.fullName,
+    this.profilePhotoUrl,
   });
 
   bool get isPatient => role == 'patient';
@@ -35,6 +37,7 @@ class AuthUser {
       role:     (user['role'] ?? 'patient').toString(),
       token:    (json['token'] ?? '').toString(),
       fullName: profile['full_name'] as String?,
+      profilePhotoUrl: profile['profile_photo_url'] as String?,
     );
   }
 

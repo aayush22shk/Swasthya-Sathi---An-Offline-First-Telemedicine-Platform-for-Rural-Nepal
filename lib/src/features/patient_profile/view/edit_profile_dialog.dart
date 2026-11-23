@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/profile_service.dart';
 import '../models/patient_profile_model.dart';
+import '../widgets/patient_avatar_widget.dart';
+import '../widgets/profile_photo_picker_sheet.dart';
 
 class EditProfileDialog extends StatefulWidget {
   final PatientProfileModel profile;
@@ -39,6 +41,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
   String? _selectedGender;
   String? _selectedBloodGroup;
   DateTime? _selectedDob;
+  String? _photoUrl;
   bool _isLoading = false;
 
   final List<String> _bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -57,6 +60,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
 
     _selectedGender = p.gender;
     _selectedBloodGroup = p.bloodGroup;
+    _photoUrl = p.profilePhotoUrl;
     if (p.dob != null && p.dob!.isNotEmpty) {
       try {
         _selectedDob = DateTime.parse(p.dob!);
@@ -73,6 +77,18 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     _emergencyNameController.dispose();
     _emergencyPhoneController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickProfilePhoto() async {
+    final picked = await ProfilePhotoPickerSheet.show(
+      context,
+      currentPhotoUrl: _photoUrl,
+    );
+    if (picked != null) {
+      setState(() {
+        _photoUrl = picked.trim().isEmpty ? null : picked.trim();
+      });
+    }
   }
 
   Future<void> _pickDob() async {
@@ -123,6 +139,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
         'emergency_contact_phone': _emergencyPhoneController.text.trim().isNotEmpty
             ? _emergencyPhoneController.text.trim()
             : null,
+        'profile_photo_url': _photoUrl ?? '',
       };
 
       final updatedProfile = await _profileService.updatePatientProfile(
@@ -135,6 +152,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
         fullName: updatedProfile.fullName,
         phone: updatedProfile.phone,
         email: updatedProfile.email,
+        profilePhotoUrl: updatedProfile.profilePhotoUrl,
       );
 
       if (!mounted) return;
@@ -230,6 +248,44 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Profile Photo Avatar & Edit Button
+                    Center(
+                      child: Column(
+                        children: [
+                          PatientAvatarWidget(
+                            size: 88.0,
+                            photoUrl: _photoUrl,
+                            showEditBadge: true,
+                            onEditTap: _pickProfilePhoto,
+                          ),
+                          const SizedBox(height: 8),
+                          InkWell(
+                            onTap: _pickProfilePhoto,
+                            borderRadius: BorderRadius.circular(8),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.camera_alt_rounded, size: 16, color: Color(0xFF0072FF)),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Change Photo',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF0072FF),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
                     _buildFieldLabel('Full Name *'),
                     TextFormField(
                       controller: _nameController,

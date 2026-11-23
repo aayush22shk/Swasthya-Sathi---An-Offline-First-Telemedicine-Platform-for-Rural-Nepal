@@ -33,6 +33,8 @@ const updateRules = [
     .matches(/^\+?[0-9]{7,20}$/).withMessage('Invalid emergency contact phone number.'),
   body('preferred_language').optional({ checkFalsy: true })
     .isIn(['ne', 'en']).withMessage("Language must be 'ne' or 'en'."),
+  body('profile_photo_url').optional({ checkFalsy: false })
+    .isString().withMessage('Profile photo URL must be a string.'),
 ];
 
 

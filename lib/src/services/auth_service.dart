@@ -33,12 +33,13 @@ class AuthService {
     if (token == null || token.isEmpty) return;
 
     userNotifier.value = AuthUser(
-      id:       prefs.getString(ApiConstants.kUserId)    ?? '',
-      phone:    prefs.getString(ApiConstants.kUserPhone) ?? '',
-      email:    prefs.getString(ApiConstants.kUserEmail),
-      role:     prefs.getString(ApiConstants.kUserRole)  ?? 'patient',
-      token:    token,
-      fullName: prefs.getString(ApiConstants.kFullName),
+      id:              prefs.getString(ApiConstants.kUserId)    ?? '',
+      phone:           prefs.getString(ApiConstants.kUserPhone) ?? '',
+      email:           prefs.getString(ApiConstants.kUserEmail),
+      role:            prefs.getString(ApiConstants.kUserRole)  ?? 'patient',
+      token:           token,
+      fullName:        prefs.getString(ApiConstants.kFullName),
+      profilePhotoUrl: prefs.getString(ApiConstants.kProfilePhoto),
     );
   }
 
@@ -48,14 +49,20 @@ class AuthService {
     await prefs.setString(ApiConstants.kUserId,    user.id);
     await prefs.setString(ApiConstants.kUserRole,  user.role);
     await prefs.setString(ApiConstants.kUserPhone, user.phone);
-    if (user.email    != null) await prefs.setString(ApiConstants.kUserEmail, user.email!);
-    if (user.fullName != null) await prefs.setString(ApiConstants.kFullName,  user.fullName!);
+    if (user.email           != null) await prefs.setString(ApiConstants.kUserEmail,    user.email!);
+    if (user.fullName        != null) await prefs.setString(ApiConstants.kFullName,     user.fullName!);
+    if (user.profilePhotoUrl != null) {
+      await prefs.setString(ApiConstants.kProfilePhoto, user.profilePhotoUrl!);
+    } else {
+      await prefs.remove(ApiConstants.kProfilePhoto);
+    }
   }
 
   Future<void> updateUserSession({
     String? fullName,
     String? phone,
     String? email,
+    String? profilePhotoUrl,
   }) async {
     final current = currentUser;
     if (current == null) return;
@@ -66,6 +73,7 @@ class AuthService {
       role: current.role,
       token: current.token,
       fullName: fullName ?? current.fullName,
+      profilePhotoUrl: profilePhotoUrl ?? current.profilePhotoUrl,
     );
     userNotifier.value = updated;
     await _persistUser(updated);
@@ -80,6 +88,7 @@ class AuthService {
     await prefs.remove(ApiConstants.kUserPhone);
     await prefs.remove(ApiConstants.kUserEmail);
     await prefs.remove(ApiConstants.kFullName);
+    await prefs.remove(ApiConstants.kProfilePhoto);
   }
 
   // ── Network helpers ───────────────────────────────────────────────────────

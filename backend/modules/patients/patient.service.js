@@ -150,6 +150,7 @@ const updatePatient = async (patientId, fields) => {
     }
 
     // 3. Update patients table
+    const updatePhoto = profile_photo_url !== undefined;
     await client.query(
       `UPDATE patients SET
          full_name                = COALESCE($1, full_name),
@@ -161,9 +162,9 @@ const updatePatient = async (patientId, fields) => {
          address_line             = COALESCE($7, address_line),
          emergency_contact_name   = COALESCE($8, emergency_contact_name),
          emergency_contact_phone  = COALESCE($9, emergency_contact_phone),
-         profile_photo_url        = COALESCE($10, profile_photo_url),
+         profile_photo_url        = CASE WHEN $10 THEN $11 ELSE profile_photo_url END,
          updated_at               = now()
-       WHERE id = $11`,
+       WHERE id = $12`,
       [
         full_name || null,
         dob || null,
@@ -174,6 +175,7 @@ const updatePatient = async (patientId, fields) => {
         address_line || null,
         emergency_contact_name || null,
         emergency_contact_phone || null,
+        updatePhoto,
         profile_photo_url || null,
         patientId,
       ]

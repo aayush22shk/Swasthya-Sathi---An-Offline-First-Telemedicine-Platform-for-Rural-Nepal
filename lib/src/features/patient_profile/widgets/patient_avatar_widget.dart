@@ -4,17 +4,21 @@ class PatientAvatarWidget extends StatelessWidget {
   final double size;
   final String? photoUrl;
   final String? initials;
+  final bool showEditBadge;
+  final VoidCallback? onEditTap;
 
   const PatientAvatarWidget({
     super.key,
     this.size = 84.0,
     this.photoUrl,
     this.initials,
+    this.showEditBadge = false,
+    this.onEditTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final avatarBody = Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
@@ -30,7 +34,47 @@ class PatientAvatarWidget extends StatelessWidget {
                 errorBuilder: (_, _, _) => _buildVectorIllustration(),
               )
             : _buildVectorIllustration(),
+      ),
+    );
 
+    if (!showEditBadge && onEditTap == null) {
+      return avatarBody;
+    }
+
+    final badgeSize = (size * 0.32).clamp(24.0, 34.0);
+
+    return GestureDetector(
+      onTap: onEditTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          avatarBody,
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              width: badgeSize,
+              height: badgeSize,
+              decoration: BoxDecoration(
+                color: const Color(0xFF0072FF),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0072FF).withValues(alpha: 0.35),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.camera_alt_rounded,
+                color: Colors.white,
+                size: badgeSize * 0.52,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

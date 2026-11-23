@@ -149,6 +149,8 @@ const updateDoctor = async (doctorId, fields) => {
     profile_photo_url,
   } = fields;
 
+  const updatePhoto = profile_photo_url !== undefined;
+
   const result = await pool.query(
     `UPDATE doctors SET
        full_name         = COALESCE($1, full_name),
@@ -156,9 +158,9 @@ const updateDoctor = async (doctorId, fields) => {
        consultation_fee  = COALESCE($3, consultation_fee),
        experience_years  = COALESCE($4, experience_years),
        is_available      = COALESCE($5, is_available),
-       profile_photo_url = COALESCE($6, profile_photo_url),
+       profile_photo_url = CASE WHEN $6 THEN $7 ELSE profile_photo_url END,
        updated_at        = now()
-     WHERE id = $7
+     WHERE id = $8
      RETURNING id, full_name, bio, consultation_fee, experience_years,
                is_available, nmc_status, average_rating, profile_photo_url, updated_at`,
     [
@@ -167,6 +169,7 @@ const updateDoctor = async (doctorId, fields) => {
       consultation_fee !== undefined ? consultation_fee : null,
       experience_years !== undefined ? experience_years : null,
       is_available !== undefined ? is_available : null,
+      updatePhoto,
       profile_photo_url || null,
       doctorId,
     ]

@@ -380,15 +380,35 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
                               ),
                             ],
                           ),
-                          child: Center(
-                            child: Text(
-                              initials.isNotEmpty ? initials : 'AS',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18.0,
-                              ),
-                            ),
+                          child: ClipOval(
+                            child: ((profile?.profilePhotoUrl != null && profile!.profilePhotoUrl!.isNotEmpty) ||
+                                    (user?.profilePhotoUrl != null && user!.profilePhotoUrl!.isNotEmpty))
+                                ? Image.network(
+                                    profile?.profilePhotoUrl ?? user?.profilePhotoUrl ?? '',
+                                    width: 50,
+                                    height: 50,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) => Center(
+                                      child: Text(
+                                        initials.isNotEmpty ? initials : 'AS',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18.0,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : Center(
+                                    child: Text(
+                                      initials.isNotEmpty ? initials : 'AS',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18.0,
+                                      ),
+                                    ),
+                                  ),
                           ),
                         ),
                         Positioned(
