@@ -1,13 +1,25 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../../models/chat_message_model.dart';
+import '../../../models/message_model.dart';
+import '../../../models/conv_prescription_model.dart';
+import '../../../models/diagnosis_model.dart';
 import '../../../services/auth_service.dart';
-import '../../../services/consultation_service.dart';
-import '../../doctor_dashboard/services/doctor_dashboard_service.dart';
+import '../../../services/conversation_service.dart';
+import '../../../services/conv_prescription_service.dart';
+import '../../../services/diagnosis_service.dart';
+import 'prescription_detail_screen.dart';
+import 'diagnosis_detail_screen.dart';
 
+/// Doctor-side persistent chat screen with Prescription & Diagnosis attachments.
 class DoctorChatScreen extends StatefulWidget {
-  final String consultationId;
-  final String patientId;
+  /// Preferred: direct conversation ID (UUID from conversations table).
+  /// Provide this OR [patientEntityId] to resolve the conversation.
+  final String? conversationId;
+
+  /// Alternative: patients.id UUID — the screen will call getOrCreate to resolve the conversation.
+  final String? patientEntityId;
+
+  final String patientId;      // patients.id (UUID) — also used for display
   final String patientName;
   final int patientAge;
   final String patientGender;
@@ -16,7 +28,8 @@ class DoctorChatScreen extends StatefulWidget {
 
   const DoctorChatScreen({
     super.key,
-    required this.consultationId,
+    this.conversationId,
+    this.patientEntityId,
     required this.patientId,
     required this.patientName,
     this.patientAge = 0,
@@ -30,64 +43,88 @@ class DoctorChatScreen extends StatefulWidget {
 }
 
 class _DoctorChatScreenState extends State<DoctorChatScreen> {
-  final TextEditingController _msgController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-  final ConsultationService _consultationService = ConsultationService();
-  final DoctorDashboardService _doctorService = DoctorDashboardService();
-  Timer? _pollingTimer;
+  final TextEditingController _msgCtrl = TextEditingController();
+  final ScrollController _scrollCtrl = ScrollController();
+  final ConversationService _convService = ConversationService();
+  final ConvPrescriptionService _rxService = ConvPrescriptionService();
+  final DiagnosisService _dxService = DiagnosisService();
 
-  final List<ChatMessageModel> _messages = [];
+  final List<MessageModel> _messages = [];
   bool _isLoading = true;
   bool _isSending = false;
+  String? _resolvedConvId; // resolved from widget.conversationId OR getOrCreate
 
+  String get _convId => _resolvedConvId ?? widget.conversationId ?? '';
+  Timer? _pollingTimer;
+
+  // ── Lifecycle ──────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
-    _loadChatHistory();
-    // Poll every 3 seconds for new incoming patient messages
-    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      _fetchLatestMessages(silent: true);
-    });
+    _initChat();
   }
 
   @override
   void dispose() {
     _pollingTimer?.cancel();
-    _msgController.dispose();
-    _scrollController.dispose();
+    _msgCtrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _loadChatHistory() async {
+  // ── Data ───────────────────────────────────────────────────────────────────
+  Future<void> _initChat() async {
     setState(() => _isLoading = true);
-    await _fetchLatestMessages();
+
+    // 1. Resolve conversation ID
+    if (widget.conversationId != null && widget.conversationId!.isNotEmpty) {
+      _resolvedConvId = widget.conversationId;
+    } else if (widget.patientEntityId != null && widget.patientEntityId!.isNotEmpty) {
+      try {
+        final conv = await _convService.getOrCreate(patientId: widget.patientEntityId!);
+        _resolvedConvId = conv.id;
+      } catch (_) {}
+    } else {
+      // Fallback: use patientId as patients.id to create conversation
+      try {
+        final conv = await _convService.getOrCreate(patientId: widget.patientId);
+        _resolvedConvId = conv.id;
+      } catch (_) {}
+    }
+
+    // 2. Load history
+    await _fetchMessages();
     if (mounted) {
       setState(() => _isLoading = false);
       _scrollToBottom();
+      _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+        _fetchMessages(silent: true);
+      });
     }
   }
 
-  Future<void> _fetchLatestMessages({bool silent = false}) async {
-    if (widget.consultationId.isEmpty) return;
+  Future<void> _fetchMessages({bool silent = false}) async {
+    final convId = _convId;
+    if (convId.isEmpty) return;
     try {
-      final list = await _consultationService.getMessages(widget.consultationId);
-      if (mounted) {
-        if (list.length != _messages.length) {
-          setState(() {
-            _messages.clear();
-            _messages.addAll(list);
-          });
-          if (!silent) _scrollToBottom();
-        }
+      final msgs = await _convService.getMessages(convId);
+      if (!mounted) return;
+      if (msgs.length != _messages.length) {
+        setState(() {
+          _messages
+            ..clear()
+            ..addAll(msgs);
+        });
+        if (!silent) _scrollToBottom();
       }
     } catch (_) {}
   }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent + 80,
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent + 100,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -95,400 +132,446 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
     });
   }
 
+  // ── Send text ──────────────────────────────────────────────────────────────
   Future<void> _sendMessage() async {
-    final text = _msgController.text.trim();
+    final text = _msgCtrl.text.trim();
     if (text.isEmpty || _isSending) return;
 
-    _msgController.clear();
+    _msgCtrl.clear();
     setState(() => _isSending = true);
 
-    final currentDoctor = AuthService().currentUser;
-    final tempMsg = ChatMessageModel(
-      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
-      consultationId: widget.consultationId,
-      senderId: currentDoctor?.id ?? '',
-      senderName: currentDoctor?.fullName ?? 'Dr. Bikash Sharma',
+    final me = AuthService().currentUser;
+    final optimistic = MessageModel(
+      id: 'tmp_${DateTime.now().millisecondsSinceEpoch}',
+      conversationId: _convId,
+      senderId: me?.id ?? '',
       senderRole: 'doctor',
-      message: text,
-      sentAt: DateTime.now(),
+      senderName: me?.fullName ?? 'Doctor',
+      messageType: MessageType.text,
+      messageContent: text,
+      createdAt: DateTime.now(),
     );
 
-    setState(() {
-      _messages.add(tempMsg);
-    });
+    setState(() => _messages.add(optimistic));
     _scrollToBottom();
 
     try {
-      await _consultationService.sendMessage(
-        widget.consultationId,
-        message: text,
-      );
-      // Mark as read in doctor dashboard
-      _doctorService.markChatThreadRead(widget.consultationId);
-    } catch (e) {
-      // Kept local message
-    } finally {
+      final saved = await _convService.sendMessage(_convId, text);
       if (mounted) {
-        setState(() => _isSending = false);
+        setState(() {
+          final idx = _messages.indexWhere((m) => m.id == optimistic.id);
+          if (idx >= 0) _messages[idx] = saved;
+        });
       }
+    } catch (_) {
+      // Keep optimistic message shown; will reconcile on next poll
+    } finally {
+      if (mounted) setState(() => _isSending = false);
     }
   }
 
-  void _showConsultationSummaryDialog() {
-    final diagCtrl = TextEditingController(text: 'Clinical Assessment & General Consultation');
-    final notesCtrl = TextEditingController(
-        text: 'Patient presented with health queries. Advised appropriate lifestyle adjustments and medication protocol.');
+  // ── Attachment bottom sheet ────────────────────────────────────────────────
+  void _showAttachmentSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFCBD5E1),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF059669).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.medication_rounded, color: Color(0xFF059669)),
+              ),
+              title: const Text('Prescription', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('Issue medicines for the patient'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showPrescriptionDialog();
+              },
+            ),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.assignment_rounded, color: Color(0xFFF59E0B)),
+              ),
+              title: const Text('Diagnosis Results', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('Share clinical findings & treatment plan'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showDiagnosisDialog();
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Prescription dialog ────────────────────────────────────────────────────
+  void _showPrescriptionDialog() {
+    final titleCtrl = TextEditingController();
+    final instructionsCtrl = TextEditingController();
+    final List<Map<String, TextEditingController>> medicines = [
+      _newMedControllers(),
+    ];
     bool isSaving = false;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.78,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              padding: EdgeInsets.fromLTRB(
-                  20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => Container(
+          height: MediaQuery.of(ctx).size.height * 0.9,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              _sheetHandle(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                child: Row(
                   children: [
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(Icons.description_rounded, color: Color(0xFF0072FF), size: 22),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Consultation Summary',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                              ),
-                              Text(
-                                'Patient: ${widget.patientName} (${widget.patientAge > 0 ? '${widget.patientAge} yrs' : widget.patientGender})',
-                                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    const Text('Clinical Diagnosis',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: diagCtrl,
-                      decoration: InputDecoration(
-                        hintText: 'Enter clinical diagnosis...',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    const Text('Doctor Notes & Clinical Advice',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: notesCtrl,
-                      maxLines: 4,
-                      decoration: InputDecoration(
-                        hintText: 'Enter clinical observations, advice, and instructions...',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        contentPadding: const EdgeInsets.all(14),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0072FF),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: isSaving
-                            ? null
-                            : () async {
-                                setDialogState(() => isSaving = true);
-                                final ok = await _doctorService.saveConsultationSummary(
-                                  consultationId: widget.consultationId,
-                                  diagnosis: diagCtrl.text.trim(),
-                                  doctorNotes: notesCtrl.text.trim(),
-                                );
-                                if (ctx.mounted) Navigator.pop(ctx);
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(ok
-                                          ? 'Consultation summary saved successfully.'
-                                          : 'Failed to save summary.'),
-                                      backgroundColor: ok ? const Color(0xFF059669) : const Color(0xFFEF4444),
-                                    ),
-                                  );
-                                }
-                              },
-                        child: isSaving
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Text('Save & Conclude Summary',
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                      ),
+                    const Icon(Icons.medication_rounded, color: Color(0xFF059669)),
+                    const SizedBox(width: 10),
+                    const Text('New Prescription',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                    const Spacer(),
+                    TextButton.icon(
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Add Medicine'),
+                      onPressed: () => setS(() => medicines.add(_newMedControllers())),
                     ),
                   ],
                 ),
               ),
-            );
-          },
-        );
-      },
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _inputField(titleCtrl, 'Prescription Title (optional)', maxLines: 1),
+                      const SizedBox(height: 12),
+                      ...medicines.asMap().entries.map((e) {
+                        final i = e.key;
+                        final m = e.value;
+                        return _medicineCard(m, i, medicines.length > 1,
+                            () => setS(() => medicines.removeAt(i)));
+                      }),
+                      const SizedBox(height: 12),
+                      _inputField(instructionsCtrl, 'Additional Instructions', maxLines: 3),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF059669),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: isSaving
+                              ? null
+                              : () async {
+                                  setS(() => isSaving = true);
+                                  try {
+                                    final meds = medicines.map((m) => {
+                                      'medicine_name': m['name']!.text.trim(),
+                                      'dosage': m['dosage']!.text.trim(),
+                                      'frequency': m['freq']!.text.trim(),
+                                      'duration': m['duration']!.text.trim(),
+                                      'instructions': m['instructions']!.text.trim(),
+                                    }).where((m) => (m['medicine_name'] as String).isNotEmpty).toList();
+
+                                    if (meds.isEmpty) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Add at least one medicine.')));
+                                      setS(() => isSaving = false);
+                                      return;
+                                    }
+
+                                    final _ = await _rxService.create(
+                                      conversationId: _convId,
+                                      title: titleCtrl.text.trim().isEmpty ? null : titleCtrl.text.trim(),
+                                      additionalInstructions: instructionsCtrl.text.trim().isEmpty
+                                          ? null : instructionsCtrl.text.trim(),
+                                      medicines: meds,
+                                    );
+
+                                    if (mounted) {
+                                      Navigator.pop(ctx);
+                                      await _fetchMessages();
+                                      _scrollToBottom();
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Error: $e')));
+                                    }
+                                    setS(() => isSaving = false);
+                                  }
+                                },
+                          child: isSaving
+                              ? const SizedBox(
+                                  height: 20, width: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Text('Send Prescription', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  void _showPrescriptionDialog() {
-    final medNameCtrl = TextEditingController(text: 'Paracetamol 500mg');
-    final dosageCtrl = TextEditingController(text: '1 Tablet');
-    final freqCtrl = TextEditingController(text: 'TDS (Three times a day after meals)');
-    final daysCtrl = TextEditingController(text: '5');
-    final instrCtrl = TextEditingController(text: 'Take with plenty of warm water.');
-    final notesCtrl = TextEditingController(text: 'Rest well and maintain hydration.');
-    bool isSubmitting = false;
+  Map<String, TextEditingController> _newMedControllers() => {
+    'name': TextEditingController(),
+    'dosage': TextEditingController(),
+    'freq': TextEditingController(),
+    'duration': TextEditingController(),
+    'instructions': TextEditingController(),
+  };
+
+  Widget _medicineCard(Map<String, TextEditingController> m, int i, bool canDelete, VoidCallback onDelete) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF059669).withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('Medicine ${i + 1}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF059669))),
+              const Spacer(),
+              if (canDelete)
+                GestureDetector(
+                  onTap: onDelete,
+                  child: const Icon(Icons.close, size: 18, color: Color(0xFF94A3B8)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _inputField(m['name']!, 'Medicine Name *', maxLines: 1),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _inputField(m['dosage']!, 'Dosage (e.g. 500mg)', maxLines: 1)),
+              const SizedBox(width: 8),
+              Expanded(child: _inputField(m['freq']!, 'Frequency (e.g. 2×/day)', maxLines: 1)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _inputField(m['duration']!, 'Duration (e.g. 7 days)', maxLines: 1),
+          const SizedBox(height: 8),
+          _inputField(m['instructions']!, 'Special Instructions', maxLines: 2),
+        ],
+      ),
+    );
+  }
+
+  // ── Diagnosis dialog ───────────────────────────────────────────────────────
+  void _showDiagnosisDialog() {
+    final titleCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    final findingsCtrl = TextEditingController();
+    final treatmentCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
+    bool isSaving = false;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.84,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              padding: EdgeInsets.fromLTRB(
-                  20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => Container(
+          height: MediaQuery.of(ctx).size.height * 0.9,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              _sheetHandle(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                child: Row(
                   children: [
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFECFDF5),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(Icons.medication_rounded, color: Color(0xFF059669), size: 22),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Issue Digital Prescription',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                              ),
-                              Text(
-                                'Patient: ${widget.patientName}',
-                                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: medNameCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'Medicine Name & Strength',
-                        hintText: 'e.g. Cetirizine 10mg',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: dosageCtrl,
-                            decoration: InputDecoration(
-                              labelText: 'Dosage',
-                              hintText: 'e.g. 1 Tab',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextField(
-                            controller: daysCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: 'Duration (Days)',
-                              hintText: 'e.g. 5',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: freqCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'Frequency',
-                        hintText: 'e.g. Once daily at bedtime',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: instrCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'Special Instructions',
-                        hintText: 'e.g. Drink plenty of water',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: notesCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'General Advice',
-                        hintText: 'e.g. Review if symptoms worsen',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF059669),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: isSubmitting
-                            ? null
-                            : () async {
-                                setDialogState(() => isSubmitting = true);
-                                final ok = await _doctorService.issueDigitalPrescription(
-                                  patientId: widget.patientId,
-                                  consultationId: widget.consultationId,
-                                  notes: notesCtrl.text.trim(),
-                                  items: [
-                                    {
-                                      'medicine_name': medNameCtrl.text.trim(),
-                                      'dosage': dosageCtrl.text.trim(),
-                                      'frequency': freqCtrl.text.trim(),
-                                      'duration_days': int.tryParse(daysCtrl.text.trim()) ?? 5,
-                                      'instructions': instrCtrl.text.trim(),
-                                      'route': 'oral',
-                                    }
-                                  ],
-                                );
-                                if (ctx.mounted) Navigator.pop(ctx);
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(ok
-                                          ? 'Prescription issued for ${widget.patientName}.'
-                                          : 'Failed to issue prescription.'),
-                                      backgroundColor: ok ? const Color(0xFF059669) : const Color(0xFFEF4444),
-                                    ),
-                                  );
-                                }
-                              },
-                        child: isSubmitting
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Text('Issue Digital Prescription',
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
+                    const Icon(Icons.assignment_rounded, color: Color(0xFFF59E0B)),
+                    const SizedBox(width: 10),
+                    const Text('Diagnosis Results',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                   ],
                 ),
               ),
-            );
-          },
-        );
-      },
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      _inputField(titleCtrl, 'Diagnosis Title *', maxLines: 1),
+                      const SizedBox(height: 12),
+                      _inputField(descCtrl, 'Description / Summary', maxLines: 3),
+                      const SizedBox(height: 12),
+                      _inputField(findingsCtrl, 'Clinical Findings', maxLines: 4),
+                      const SizedBox(height: 12),
+                      _inputField(treatmentCtrl, 'Recommended Treatment', maxLines: 3),
+                      const SizedBox(height: 12),
+                      _inputField(notesCtrl, 'Additional Notes', maxLines: 2),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFF59E0B),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: isSaving
+                              ? null
+                              : () async {
+                                  if (titleCtrl.text.trim().isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Title is required.')));
+                                    return;
+                                  }
+                                  setS(() => isSaving = true);
+                                  try {
+                                    await _dxService.create(
+                                      conversationId: _convId,
+                                      title: titleCtrl.text.trim(),
+                                      description: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                                      findings: findingsCtrl.text.trim().isEmpty ? null : findingsCtrl.text.trim(),
+                                      recommendedTreatment: treatmentCtrl.text.trim().isEmpty ? null : treatmentCtrl.text.trim(),
+                                      additionalNotes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+                                    );
+                                    if (mounted) {
+                                      Navigator.pop(ctx);
+                                      await _fetchMessages();
+                                      _scrollToBottom();
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Error: $e')));
+                                    }
+                                    setS(() => isSaving = false);
+                                  }
+                                },
+                          child: isSaving
+                              ? const SizedBox(
+                                  height: 20, width: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Text('Send Diagnosis', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
+  // ── UI helpers ─────────────────────────────────────────────────────────────
+  Widget _sheetHandle() => Container(
+        margin: const EdgeInsets.only(top: 12),
+        width: 40, height: 4,
+        decoration: BoxDecoration(
+          color: const Color(0xFFCBD5E1),
+          borderRadius: BorderRadius.circular(2),
+        ),
+      );
+
+  Widget _inputField(TextEditingController ctrl, String hint, {int maxLines = 1}) {
+    return TextField(
+      controller: ctrl,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+        filled: true,
+        fillColor: const Color(0xFFF8FAFC),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFF0072FF)),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ),
+    );
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FB),
       appBar: AppBar(
         backgroundColor: Colors.white,
-        elevation: 0.5,
-        leadingWidth: 40,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF0F172A), size: 20),
-          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: Color(0xFF0F172A)),
+          onPressed: () => Navigator.pop(context),
         ),
         title: Row(
           children: [
             CircleAvatar(
-              radius: 19,
-              backgroundColor: const Color(0xFFE0EDFF),
+              radius: 18,
+              backgroundColor: const Color(0xFFEFF6FF),
               backgroundImage: widget.avatarUrl != null && widget.avatarUrl!.isNotEmpty
                   ? NetworkImage(widget.avatarUrl!)
                   : null,
               child: widget.avatarUrl == null || widget.avatarUrl!.isEmpty
                   ? Text(
                       widget.patientName.isNotEmpty ? widget.patientName[0].toUpperCase() : 'P',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0072FF)),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0072FF)),
                     )
                   : null,
             ),
@@ -497,13 +580,11 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(widget.patientName,
+                      style: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                   Text(
-                    widget.patientName,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    '${widget.patientAge > 0 ? '${widget.patientAge} yrs • ' : ''}${widget.patientLocation} • Patient',
+                    '${widget.patientGender} · ${widget.patientAge > 0 ? "${widget.patientAge} yrs · " : ""}${widget.patientLocation}',
                     style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                   ),
                 ],
@@ -511,179 +592,152 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.description_outlined, color: Color(0xFF0072FF)),
-            tooltip: 'Consultation Summary',
-            onPressed: _showConsultationSummaryDialog,
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded, color: Color(0xFF475569)),
-            tooltip: 'Consultation Actions',
-            onSelected: (val) {
-              if (val == 'summary') {
-                _showConsultationSummaryDialog();
-              } else if (val == 'prescription') {
-                _showPrescriptionDialog();
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'summary',
-                child: Row(
-                  children: [
-                    Icon(Icons.assignment_outlined, color: Color(0xFF0072FF), size: 18),
-                    SizedBox(width: 8),
-                    Text('Consultation Summary', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'prescription',
-                child: Row(
-                  children: [
-                    Icon(Icons.medication_outlined, color: Color(0xFF059669), size: 18),
-                    SizedBox(width: 8),
-                    Text('Issue Prescription', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+        ),
       ),
       body: Column(
         children: [
-          // Doctor Info Banner
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: const BoxDecoration(
-              color: Color(0xFFEFF6FF),
-              border: Border(bottom: BorderSide(color: Color(0xFFDBEAFE))),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.shield_outlined, color: Color(0xFF0072FF), size: 16),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Clinical Consultation with ${widget.patientName}. All messages are stored in patient EHR.',
-                    style: const TextStyle(fontSize: 11.5, color: Color(0xFF1E40AF), fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Message history
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFF0072FF)))
                 : _messages.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.chat_bubble_outline_rounded, size: 48, color: Colors.grey.shade300),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No messages yet with ${widget.patientName}',
-                              style: const TextStyle(fontSize: 14, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Type a clinical message below to start the conversation.',
-                              style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                            ),
-                          ],
-                        ),
-                      )
+                    ? const Center(
+                        child: Text('No messages yet. Start the conversation!',
+                            style: TextStyle(color: Color(0xFF64748B))))
                     : ListView.builder(
-                        controller: _scrollController,
+                        controller: _scrollCtrl,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         itemCount: _messages.length,
-                        itemBuilder: (ctx, i) => _buildMessageBubble(_messages[i]),
+                        itemBuilder: (_, i) => _buildBubble(_messages[i]),
                       ),
           ),
+          _buildInputBar(),
+        ],
+      ),
+    );
+  }
 
-          // Input Bar
-          Container(
-            padding: EdgeInsets.fromLTRB(
-              16,
-              10,
-              16,
-              MediaQuery.of(context).viewInsets.bottom + 12,
+  Widget _buildBubble(MessageModel msg) {
+    switch (msg.messageType) {
+      case MessageType.prescription:
+        return _PrescriptionBubble(
+          msg: msg,
+          rxService: _rxService,
+          onTap: (rx) => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => PrescriptionDetailScreen(prescription: rx)),
+          ),
+        );
+      case MessageType.diagnosis:
+        return _DiagnosisBubble(
+          msg: msg,
+          dxService: _dxService,
+          onTap: (dx) => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => DiagnosisDetailScreen(diagnosis: dx)),
+          ),
+        );
+      case MessageType.text:
+        return _TextBubble(msg: msg, myRole: 'doctor', otherName: widget.patientName);
+    }
+  }
+
+  Widget _buildInputBar() {
+    return Container(
+      padding: EdgeInsets.only(
+        left: 12,
+        right: 12,
+        top: 10,
+        bottom: MediaQuery.of(context).padding.bottom + 10,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+        boxShadow: [BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, -4))],
+      ),
+      child: Row(
+        children: [
+          // Plus button
+          GestureDetector(
+            onTap: _showAttachmentSheet,
+            child: Container(
+              width: 42, height: 42,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF0072FF).withValues(alpha: 0.3)),
+              ),
+              child: const Icon(Icons.add_rounded, color: Color(0xFF0072FF), size: 22),
             ),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
-              boxShadow: [
-                BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, -3))
-              ],
+          ),
+          const SizedBox(width: 10),
+          // Message input
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: TextField(
+                controller: _msgCtrl,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration.collapsed(
+                  hintText: 'Type a message...',
+                  hintStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                ),
+                onSubmitted: (_) => _sendMessage(),
+                style: const TextStyle(fontSize: 14),
+                maxLines: null,
+              ),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: TextField(
-                      controller: _msgController,
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(
-                        hintText: 'Type clinical advice or reply...',
-                        hintStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
-                        border: InputBorder.none,
-                      ),
-                      onSubmitted: (_) => _sendMessage(),
-                      style: const TextStyle(fontSize: 14),
-                      maxLines: null,
-                    ),
+          ),
+          const SizedBox(width: 10),
+          // Send button
+          GestureDetector(
+            onTap: _sendMessage,
+            child: Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xFF0072FF),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0072FF).withValues(alpha: 0.3),
+                    blurRadius: 8, offset: const Offset(0, 3),
                   ),
-                ),
-                const SizedBox(width: 10),
-                GestureDetector(
-                  onTap: _sendMessage,
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0072FF),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF0072FF).withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: _isSending
-                        ? const Center(
-                            child: SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            ),
-                          )
-                        : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-                  ),
-                ),
-              ],
+                ],
+              ),
+              child: _isSending
+                  ? const Center(
+                      child: SizedBox(
+                          width: 18, height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)))
+                  : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildMessageBubble(ChatMessageModel msg) {
-    // Current user is the Doctor
-    final isMe = msg.isDoctor || msg.senderRole == 'doctor';
+// =============================================================================
+// Shared bubble widgets
+// =============================================================================
 
+class _TextBubble extends StatelessWidget {
+  final MessageModel msg;
+  final String myRole;
+  final String otherName;
+
+  const _TextBubble({required this.msg, required this.myRole, required this.otherName});
+
+  @override
+  Widget build(BuildContext context) {
+    final isMe = msg.senderRole == myRole;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -693,16 +747,11 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
           if (!isMe) ...[
             CircleAvatar(
               radius: 14,
-              backgroundColor: const Color(0xFFE2E8F0),
-              backgroundImage: widget.avatarUrl != null && widget.avatarUrl!.isNotEmpty
-                  ? NetworkImage(widget.avatarUrl!)
-                  : null,
-              child: widget.avatarUrl == null || widget.avatarUrl!.isEmpty
-                  ? Text(
-                      widget.patientName.isNotEmpty ? widget.patientName[0].toUpperCase() : 'P',
-                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
-                    )
-                  : null,
+              backgroundColor: const Color(0xFFEFF6FF),
+              child: Text(
+                (msg.senderName?.isNotEmpty == true ? msg.senderName![0] : otherName.isNotEmpty ? otherName[0] : '?').toUpperCase(),
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF0072FF)),
+              ),
             ),
             const SizedBox(width: 8),
           ],
@@ -710,17 +759,14 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
             child: Column(
               crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 2),
-                  child: Text(
-                    isMe ? 'Doctor (You)' : (msg.senderName.isNotEmpty ? msg.senderName : widget.patientName),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: isMe ? const Color(0xFF0072FF) : const Color(0xFF64748B),
+                if (!isMe)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, bottom: 2),
+                    child: Text(
+                      msg.senderName ?? otherName,
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
                     ),
                   ),
-                ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
@@ -732,27 +778,248 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
                       bottomRight: isMe ? Radius.zero : const Radius.circular(16),
                     ),
                     boxShadow: const [
-                      BoxShadow(color: Color(0x08000000), blurRadius: 6, offset: Offset(0, 2))
+                      BoxShadow(color: Color(0x08000000), blurRadius: 6, offset: Offset(0, 2)),
                     ],
                   ),
                   child: Text(
-                    msg.message ?? '',
+                    msg.messageContent ?? '',
                     style: TextStyle(
-                      fontSize: 14,
-                      height: 1.4,
+                      fontSize: 14, height: 1.4,
                       color: isMe ? Colors.white : const Color(0xFF1E293B),
                     ),
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  msg.formattedTime,
-                  style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
-                ),
+                Text(msg.formattedTime, style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
               ],
             ),
           ),
           if (isMe) const SizedBox(width: 8),
+        ],
+      ),
+    );
+  }
+}
+
+class _PrescriptionBubble extends StatefulWidget {
+  final MessageModel msg;
+  final ConvPrescriptionService rxService;
+  final void Function(ConvPrescriptionModel) onTap;
+
+  const _PrescriptionBubble({required this.msg, required this.rxService, required this.onTap});
+
+  @override
+  State<_PrescriptionBubble> createState() => _PrescriptionBubbleState();
+}
+
+class _PrescriptionBubbleState extends State<_PrescriptionBubble> {
+  ConvPrescriptionModel? _rx;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (widget.msg.referenceId == null) {
+      setState(() => _loading = false);
+      return;
+    }
+    try {
+      final rx = await widget.rxService.getById(widget.msg.referenceId!);
+      if (mounted) setState(() { _rx = rx; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Flexible(
+            child: GestureDetector(
+              onTap: _rx == null ? null : () => widget.onTap(_rx!),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF059669).withValues(alpha: 0.4)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF059669).withValues(alpha: 0.08),
+                      blurRadius: 8, offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: _loading
+                    ? const Row(children: [
+                        SizedBox(width: 16, height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF059669))),
+                        SizedBox(width: 10),
+                        Text('Loading prescription...', style: TextStyle(color: Color(0xFF059669))),
+                      ])
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.medication_rounded, color: Color(0xFF059669), size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _rx?.title ?? widget.msg.messageContent ?? 'Prescription',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold, color: Color(0xFF059669), fontSize: 14),
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward_ios, size: 12, color: Color(0xFF059669)),
+                            ],
+                          ),
+                          if (_rx != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              '${_rx!.medicines.length} medicine${_rx!.medicines.length != 1 ? "s" : ""} · Tap to view',
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                            ),
+                            if (_rx!.medicines.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              ..._rx!.medicines.take(2).map((m) => Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.circle, size: 5, color: Color(0xFF059669)),
+                                    const SizedBox(width: 6),
+                                    Text('${m.medicineName}${m.dosage != null ? " · ${m.dosage}" : ""}',
+                                        style: const TextStyle(fontSize: 12, color: Color(0xFF0F172A))),
+                                  ],
+                                ),
+                              )),
+                              if (_rx!.medicines.length > 2)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2, left: 11),
+                                  child: Text('+${_rx!.medicines.length - 2} more',
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                ),
+                            ],
+                          ],
+                        ],
+                      ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+    );
+  }
+}
+
+class _DiagnosisBubble extends StatefulWidget {
+  final MessageModel msg;
+  final DiagnosisService dxService;
+  final void Function(DiagnosisModel) onTap;
+
+  const _DiagnosisBubble({required this.msg, required this.dxService, required this.onTap});
+
+  @override
+  State<_DiagnosisBubble> createState() => _DiagnosisBubbleState();
+}
+
+class _DiagnosisBubbleState extends State<_DiagnosisBubble> {
+  DiagnosisModel? _dx;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (widget.msg.referenceId == null) {
+      setState(() => _loading = false);
+      return;
+    }
+    try {
+      final dx = await widget.dxService.getById(widget.msg.referenceId!);
+      if (mounted) setState(() { _dx = dx; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Flexible(
+            child: GestureDetector(
+              onTap: _dx == null ? null : () => widget.onTap(_dx!),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.08),
+                      blurRadius: 8, offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: _loading
+                    ? const Row(children: [
+                        SizedBox(width: 16, height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFF59E0B))),
+                        SizedBox(width: 10),
+                        Text('Loading diagnosis...', style: TextStyle(color: Color(0xFFF59E0B))),
+                      ])
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.assignment_rounded, color: Color(0xFFF59E0B), size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _dx?.title ?? widget.msg.messageContent ?? 'Diagnosis',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold, color: Color(0xFFB45309), fontSize: 14),
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward_ios, size: 12, color: Color(0xFFF59E0B)),
+                            ],
+                          ),
+                          if (_dx?.description != null) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              _dx!.description!,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF78350F)),
+                            ),
+                          ],
+                          const SizedBox(height: 4),
+                          const Text('Tap to view full report',
+                              style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                        ],
+                      ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
         ],
       ),
     );

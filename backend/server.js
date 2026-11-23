@@ -1,5 +1,8 @@
 require('dotenv').config();
+const http = require('http');
 const express = require('express');
+const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
 const pool = require('./db');
 
 // Route modules
@@ -18,6 +21,11 @@ const feedbackRoutes = require('./modules/feedback/feedback.routes');
 const adminRoutes = require('./modules/admin/admin.routes');
 const followupRoutes = require('./modules/followups/followup.routes');
 
+// Chat System (Phase 2)
+const conversationRoutes     = require('./modules/conversations/conversation.routes');
+const convPrescriptionRoutes = require('./modules/conv-prescriptions/conv-prescription.routes');
+const diagnosisRoutes        = require('./modules/diagnosis-results/diagnosis.routes');
+
 // Health Analysis System (Phase 1)
 const healthRoutes         = require('./modules/health/health.routes');
 const healthAnalysisRoutes = require('./modules/health-analysis/analysis.routes');
@@ -27,6 +35,77 @@ const { sendSuccess, sendError } = require('./utils/response');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const httpServer = http.createServer(app);
+
+// ---------------------------------------------------------------------------
+// Socket.IO setup with JWT auth
+// ---------------------------------------------------------------------------
+const io = new Server(httpServer, {
+  cors: { origin: '*', methods: ['GET', 'POST'] },
+});
+
+// Auth middleware for Socket.IO
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  if (!token) return next(new Error('Authentication required.'));
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = decoded; // { id, role, phone }
+    next();
+  } catch {
+    next(new Error('Invalid token.'));
+  }
+});
+
+// Socket event handlers
+io.on('connection', (socket) => {
+  const { id: userId, role } = socket.user;
+
+  // Join a conversation room (after verifying access)
+  socket.on('join_conversation', async ({ conversationId }) => {
+    try {
+      const r = await pool.query(
+        `SELECT c.*, d.user_id AS doctor_user_id, pat.user_id AS patient_user_id
+         FROM conversations c
+         JOIN doctors d ON d.id = c.doctor_id
+         JOIN patients pat ON pat.id = c.patient_id
+         WHERE c.id = $1`,
+        [conversationId]
+      );
+      if (!r.rows.length) return socket.emit('error', { message: 'Conversation not found.' });
+      const conv = r.rows[0];
+      if (conv.doctor_user_id !== userId && conv.patient_user_id !== userId) {
+        return socket.emit('error', { message: 'Access denied.' });
+      }
+      socket.join(`conv_${conversationId}`);
+      socket.emit('joined', { conversationId });
+    } catch (err) {
+      socket.emit('error', { message: err.message });
+    }
+  });
+
+  // Send a text message via socket (persists to DB + broadcasts)
+  socket.on('send_message', async ({ conversationId, content }) => {
+    try {
+      if (!content || !content.trim()) return;
+      const r = await pool.query(
+        `INSERT INTO messages (conversation_id, sender_id, sender_role, message_type, message_content)
+         VALUES ($1, $2, $3, 'text', $4) RETURNING *`,
+        [conversationId, userId, role, content.trim()]
+      );
+      const msg = r.rows[0];
+      const nameRow = role === 'doctor'
+        ? await pool.query('SELECT full_name FROM doctors WHERE user_id = $1', [userId])
+        : await pool.query('SELECT full_name FROM patients WHERE user_id = $1', [userId]);
+      msg.sender_name = nameRow.rows[0]?.full_name ?? '';
+      io.to(`conv_${conversationId}`).emit('new_message', msg);
+    } catch (err) {
+      socket.emit('error', { message: err.message });
+    }
+  });
+
+  socket.on('disconnect', () => {});
+});
 
 // ---------------------------------------------------------------------------
 // Global middlewares
@@ -125,6 +204,11 @@ app.use('/api/v1/health-analysis', healthAnalysisRoutes);
 // 16. AI (LLM Explanation + Conversations)
 app.use('/api/v1/ai', aiRoutes);
 
+// 17. Chat System (Conversations, Conv-Prescriptions, Diagnosis Results)
+app.use('/api/v1/conversations',      conversationRoutes);
+app.use('/api/v1/conv-prescriptions', convPrescriptionRoutes);
+app.use('/api/v1/diagnosis-results',  diagnosisRoutes);
+
 // ---------------------------------------------------------------------------
 // 404 handler
 // ---------------------------------------------------------------------------
@@ -142,9 +226,9 @@ app.use((err, req, res, next) => {
 });
 
 // ---------------------------------------------------------------------------
-// Start server
+// Start server (use httpServer for Socket.IO)
 // ---------------------------------------------------------------------------
-app.listen(PORT, '0.0.0.0', () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 SwasthyaSathi API running → http://localhost:${PORT}`);
   console.log('   Mounted Endpoints:');
   console.log('   • /api/v1/health');

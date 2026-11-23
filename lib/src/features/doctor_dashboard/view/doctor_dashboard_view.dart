@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../common_widgets/navigation_bar/doctor_nav_bar.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/conversation_service.dart';
 import '../../consultation/view/doctor_chat_screen.dart';
 import '../../patient_dashboard/view/patient_dashboard_view.dart';
 import '../models/doctor_dashboard_models.dart';
@@ -2031,12 +2032,14 @@ class _DoctorDashboardViewState extends State<DoctorDashboardView> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: () {
+                onPressed: () async {
+                  final conv = await ConversationService().getOrCreate(patientId: apt.patientId);
+                  if (!context.mounted) return;
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => DoctorChatScreen(
-                        consultationId: apt.id,
+                        conversationId: conv.id,
                         patientId: apt.patientId,
                         patientName: apt.patientName,
                         patientAge: apt.patientAge,
@@ -2487,13 +2490,15 @@ class _DoctorDashboardViewState extends State<DoctorDashboardView> {
   // ───────────────────────────────────────────────────────────────────────────
   // MODALS & NAVIGATION: FULL PAGE DOCTOR CHAT, PRESCRIPTION, NOTIFICATIONS
   // ───────────────────────────────────────────────────────────────────────────
-  void _openChatModal(PatientChatThread thread) {
+  void _openChatModal(PatientChatThread thread) async {
     _service.markChatThreadRead(thread.consultationId);
+    final conv = await ConversationService().getOrCreate(patientId: thread.patientId);
+    if (!context.mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => DoctorChatScreen(
-          consultationId: thread.consultationId,
+          conversationId: conv.id,
           patientId: thread.patientId,
           patientName: thread.patientName,
           patientAge: thread.patientAge,

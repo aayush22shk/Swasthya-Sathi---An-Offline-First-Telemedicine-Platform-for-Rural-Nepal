@@ -107,4 +107,18 @@ class ApiConstants {
   static const String kBloodGroup  = 'auth_blood_group';
   static const String kAddress     = 'auth_address';
   static const String kAppLanguage = 'auth_app_language';
+
+  // ── Chat System (Conversations, Prescriptions, Diagnosis) ────────────────
+  static String get conversations => '$baseUrl/conversations';
+  static String conversationMessages(String id) => '$baseUrl/conversations/$id/messages';
+  static String get convPrescriptions => '$baseUrl/conv-prescriptions';
+  static String convPrescriptionById(String id) => '$baseUrl/conv-prescriptions/$id';
+  static String convPrescriptionsByPatient(String patientId) =>
+      '$baseUrl/conv-prescriptions/patient/$patientId';
+  static String get diagnosisResults => '$baseUrl/diagnosis-results';
+  static String diagnosisById(String id) => '$baseUrl/diagnosis-results/$id';
+  static String diagnosesByPatient(String patientId) =>
+      '$baseUrl/diagnosis-results/patient/$patientId';
+  static String get socketUrl =>
+      kIsWeb ? 'http://localhost:5000' : 'http://10.10.9.4:5000';
 }
