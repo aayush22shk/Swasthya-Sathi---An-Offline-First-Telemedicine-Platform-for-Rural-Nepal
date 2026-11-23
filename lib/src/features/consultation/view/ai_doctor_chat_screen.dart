@@ -262,7 +262,7 @@ class _AiDoctorChatScreenState extends State<AiDoctorChatScreen> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: _quickPrompts.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (context, index) => const SizedBox(width: 8),
                 itemBuilder: (context, idx) {
                   return ActionChip(
                     backgroundColor: Colors.white,

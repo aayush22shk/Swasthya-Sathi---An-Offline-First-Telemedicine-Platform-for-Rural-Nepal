@@ -44,6 +44,7 @@ class ConvPrescriptionModel {
   final String? patientName;
   final List<MedicineItem> medicines;
   final DateTime createdAt;
+  final String? signatureHash;
 
   const ConvPrescriptionModel({
     required this.id,
@@ -56,6 +57,7 @@ class ConvPrescriptionModel {
     this.patientName,
     required this.medicines,
     required this.createdAt,
+    this.signatureHash,
   });
 
   factory ConvPrescriptionModel.fromJson(Map<String, dynamic> j) => ConvPrescriptionModel(
@@ -71,5 +73,6 @@ class ConvPrescriptionModel {
             .map((m) => MedicineItem.fromJson(m as Map<String, dynamic>))
             .toList(),
         createdAt: DateTime.parse(j['created_at'] as String).toLocal(),
+        signatureHash: j['signature_hash'] as String?,
       );
 }

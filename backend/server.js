@@ -26,6 +26,9 @@ const conversationRoutes     = require('./modules/conversations/conversation.rou
 const convPrescriptionRoutes = require('./modules/conv-prescriptions/conv-prescription.routes');
 const diagnosisRoutes        = require('./modules/diagnosis-results/diagnosis.routes');
 
+// HL7 FHIR v4 Interoperability
+const fhirRoutes             = require('./modules/fhir/fhir.routes');
+
 // Health Analysis System (Phase 1)
 const healthRoutes         = require('./modules/health/health.routes');
 const healthAnalysisRoutes = require('./modules/health-analysis/analysis.routes');
@@ -208,6 +211,9 @@ app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/conversations',      conversationRoutes);
 app.use('/api/v1/conv-prescriptions', convPrescriptionRoutes);
 app.use('/api/v1/diagnosis-results',  diagnosisRoutes);
+
+// 18. HL7 FHIR v4 Interoperability
+app.use('/api/v1/fhir',               fhirRoutes);
 
 // ---------------------------------------------------------------------------
 // 404 handler

@@ -95,6 +95,29 @@ class DiagnosisDetailScreen extends StatelessWidget {
             if (diagnosis.additionalNotes != null && diagnosis.additionalNotes!.isNotEmpty)
               _section('Additional Notes', diagnosis.additionalNotes!, Icons.note_outlined, const Color(0xFF64748B)),
 
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7).withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.shield_outlined, color: Color(0xFFD97706), size: 18),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Telemedicine Clinical Assessment. In case of emergency (chest pain, acute breathlessness), visit the nearest emergency hospital immediately.',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF92400E)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             const SizedBox(height: 40),
           ],
         ),

@@ -31,6 +31,7 @@ void main() {
       'status': status,
       'fee': fee.toString(),
       'reason_for_visit': 'Chest pain and shortness of breath',
+      // ignore: use_null_aware_elements
       if (consultationId != null) 'consultation_id': consultationId,
     };
   }

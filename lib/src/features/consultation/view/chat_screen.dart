@@ -9,6 +9,7 @@ import '../../../services/conv_prescription_service.dart';
 import '../../../services/diagnosis_service.dart';
 import 'prescription_detail_screen.dart';
 import 'diagnosis_detail_screen.dart';
+import '../../../services/offline_sync_queue_service.dart';
 
 /// Patient-side persistent chat screen.
 /// Shows conversation history with the doctor including prescription & diagnosis cards (read-only).
@@ -165,7 +166,20 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       }
     } catch (_) {
-      // Keep optimistic; will reconcile on poll
+      // Offline fallback: enqueue to sync queue
+      await OfflineSyncQueueService().enqueue(
+        endpoint: '/api/v1/conversations/$_activeConversationId/messages',
+        payload: {'message_content': text},
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Offline: message queued for auto-sync.'),
+            duration: Duration(seconds: 2),
+            backgroundColor: Color(0xFF64748B),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSending = false);
     }

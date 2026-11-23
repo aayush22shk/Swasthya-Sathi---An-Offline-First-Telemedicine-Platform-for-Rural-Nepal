@@ -1,5 +1,22 @@
+const crypto = require('crypto');
 const pool = require('../../db');
 const { getConversationWithAccess, getDoctorId, getPatientId } = require('../conversations/conversation.service');
+
+/**
+ * Computes deterministic SHA-256 integrity hash for prescription tampering detection.
+ */
+const computePrescriptionHash = (doctorId, patientId, createdAt, medicines) => {
+  const canonicalMeds = (medicines || []).map((m) => ({
+    name: (m.medicine_name || '').trim().toLowerCase(),
+    dosage: (m.dosage || '').trim().toLowerCase(),
+    frequency: (m.frequency || '').trim().toLowerCase(),
+    duration: (m.duration || '').trim().toLowerCase(),
+    instructions: (m.instructions || '').trim().toLowerCase(),
+  })).sort((a, b) => a.name.localeCompare(b.name));
+
+  const canonicalString = `${doctorId}:${patientId}:${new Date(createdAt).toISOString()}:${JSON.stringify(canonicalMeds)}`;
+  return crypto.createHash('sha256').update(canonicalString).digest('hex');
+};
 
 // ---------------------------------------------------------------------------
 // Create a prescription (doctor only) — uses DB transaction
@@ -35,7 +52,15 @@ const createConvPrescription = async (conversationId, doctorUserId, { title, add
       insertedMeds.push(medRes.rows[0]);
     }
 
-    // 3. Create a message row of type 'prescription'
+    // 3. Compute SHA-256 Tamper-Evident Hash & persist
+    const signatureHash = computePrescriptionHash(doctorId, conv.patient_id, rx.created_at, insertedMeds);
+    await client.query(
+      'UPDATE conv_prescriptions SET signature_hash = $1 WHERE id = $2',
+      [signatureHash, rx.id]
+    );
+    rx.signature_hash = signatureHash;
+
+    // 4. Create a message row of type 'prescription'
     const msgRes = await client.query(
       `INSERT INTO messages (conversation_id, sender_id, sender_role, message_type,
                              message_content, reference_id)
@@ -44,7 +69,23 @@ const createConvPrescription = async (conversationId, doctorUserId, { title, add
       [conversationId, doctorUserId, title || 'Prescription issued', rx.id]
     );
 
-    // 4. Notify patient
+    // 5. Medical Governance & Audit Logging
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, metadata)
+       VALUES ($1, 'ISSUE_PRESCRIPTION', 'conv_prescriptions', $2, $3)`,
+      [
+        doctorUserId,
+        rx.id,
+        JSON.stringify({
+          conversation_id: conversationId,
+          patient_id: conv.patient_id,
+          signature_hash: signatureHash,
+          item_count: insertedMeds.length,
+        }),
+      ]
+    );
+
+    // 6. Notify patient
     await client.query(
       `INSERT INTO notifications (user_id, type, title, message)
        VALUES ($1, 'prescription_issued', 'New Prescription',

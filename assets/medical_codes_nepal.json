@@ -1,0 +1,420 @@
+{
+  "version": "1.0.0",
+  "country": "Nepal",
+  "updated_at": "2026-11-23",
+  "conditions": [
+    {
+      "code": "BA00",
+      "icd10": "I10",
+      "name": "Essential hypertension",
+      "nepali": "उच्च रक्तचाप (High BP)",
+      "category": "Cardiovascular",
+      "triage_urgency": "medium",
+      "symptoms": ["Headache", "Dizziness", "Palpitations", "Often asymptomatic"]
+    },
+    {
+      "code": "5A11",
+      "icd10": "E11",
+      "name": "Type 2 diabetes mellitus",
+      "nepali": "मधुमेह / चिनी रोग",
+      "category": "Endocrine",
+      "triage_urgency": "medium",
+      "symptoms": ["Polyuria", "Polydipsia", "Fatigue", "Slow wound healing"]
+    },
+    {
+      "code": "CA22",
+      "icd10": "J44",
+      "name": "Chronic obstructive pulmonary disease (COPD)",
+      "nepali": "पुरानो दम / पुरानो खोकी (COPD)",
+      "category": "Respiratory",
+      "triage_urgency": "high",
+      "symptoms": ["Chronic productive cough", "Dyspnea on exertion", "Wheezing"]
+    },
+    {
+      "code": "CA23",
+      "icd10": "J45",
+      "name": "Bronchial asthma",
+      "nepali": "दम (Asthma)",
+      "category": "Respiratory",
+      "triage_urgency": "high",
+      "symptoms": ["Shortness of breath", "Wheezing", "Chest tightness", "Nocturnal cough"]
+    },
+    {
+      "code": "CA40",
+      "icd10": "J18",
+      "name": "Pneumonia",
+      "nepali": "निमोनिया (Pneumonia)",
+      "category": "Respiratory",
+      "triage_urgency": "critical",
+      "symptoms": ["High fever", "Productive purulent cough", "Tachypnea", "Chest pain"]
+    },
+    {
+      "code": "CA42",
+      "icd10": "J20",
+      "name": "Acute bronchitis",
+      "nepali": "तीव्र ब्रोंकाइटिस",
+      "category": "Respiratory",
+      "triage_urgency": "medium",
+      "symptoms": ["Cough", "Mild fever", "Sore throat", "Chest discomfort"]
+    },
+    {
+      "code": "1A36",
+      "icd10": "A06",
+      "name": "Amoebic dysentery",
+      "nepali": "आउँ पर्ने / रगतमासी",
+      "category": "Infectious Gastrointestinal",
+      "triage_urgency": "medium",
+      "symptoms": ["Mucus and blood in stool", "Abdominal cramping", "Tenesmus"]
+    },
+    {
+      "code": "1A40",
+      "icd10": "A01.0",
+      "name": "Typhoid fever (Enteric fever)",
+      "nepali": "टाइफाइड ज्वरो",
+      "category": "Infectious",
+      "triage_urgency": "high",
+      "symptoms": ["Step-ladder fever", "Headache", "Abdominal pain", "Hepatosplenomegaly"]
+    },
+    {
+      "code": "1C30",
+      "icd10": "A75.3",
+      "name": "Scrub typhus",
+      "nepali": "स्क्रब टाइफस (Scrub Typhus)",
+      "category": "Vector-borne / Zoonotic",
+      "triage_urgency": "critical",
+      "symptoms": ["High fever", "Eschar", "Severe headache", "Lymphadenopathy", "Myalgia"]
+    },
+    {
+      "code": "1D20",
+      "icd10": "A90",
+      "name": "Dengue fever",
+      "nepali": "डेंगु ज्वरो (Dengue)",
+      "category": "Vector-borne",
+      "triage_urgency": "high",
+      "symptoms": ["Retro-orbital pain", "High fever", "Joint and muscle aches", "Thrombocytopenia"]
+    },
+    {
+      "code": "DA22",
+      "icd10": "K21",
+      "name": "Gastro-oesophageal reflux disease (GERD)",
+      "nepali": "एसिडिटी / ग्यास्ट्रिक",
+      "category": "Gastrointestinal",
+      "triage_urgency": "low",
+      "symptoms": ["Heartburn", "Acid regurgitation", "Epigastric burning"]
+    },
+    {
+      "code": "DA60",
+      "icd10": "K27",
+      "name": "Peptic ulcer disease",
+      "nepali": "पेटको अल्सर",
+      "category": "Gastrointestinal",
+      "triage_urgency": "medium",
+      "symptoms": ["Epigastric hunger pain", "Nausea", "Bloating", "Melena (if bleeding)"]
+    },
+    {
+      "code": "GC08",
+      "icd10": "N39.0",
+      "name": "Urinary tract infection (UTI)",
+      "nepali": "पिसाब संक्रमण / पिसाब पोल्ने",
+      "category": "Genitourinary",
+      "triage_urgency": "medium",
+      "symptoms": ["Dysuria", "Frequency", "Urgency", "Suprapubic tenderness"]
+    },
+    {
+      "code": "3A00",
+      "icd10": "D50",
+      "name": "Iron deficiency anaemia",
+      "nepali": "रक्तअल्पता / रगतको कमी",
+      "category": "Haematology",
+      "triage_urgency": "medium",
+      "symptoms": ["Pallor", "Fatigue", "Dizziness", "Koilonychia", "Dyspnea on exertion"]
+    },
+    {
+      "code": "FA00",
+      "icd10": "M19",
+      "name": "Osteoarthritis",
+      "nepali": "जोर्नी दुख्ने / बाथ",
+      "category": "Musculoskeletal",
+      "triage_urgency": "low",
+      "symptoms": ["Knee/joint pain on weight-bearing", "Morning stiffness < 30 mins", "Crepitus"]
+    },
+    {
+      "code": "8A80",
+      "icd10": "G43",
+      "name": "Migraine",
+      "nepali": "आधा टाउको दुख्ने",
+      "category": "Neurology",
+      "triage_urgency": "medium",
+      "symptoms": ["Unilateral throbbing headache", "Photophobia", "Phonophobia", "Nausea"]
+    },
+    {
+      "code": "1B10",
+      "icd10": "A15",
+      "name": "Pulmonary tuberculosis",
+      "nepali": "क्षयरोग / टिबी (TB)",
+      "category": "Infectious Respiratory",
+      "triage_urgency": "critical",
+      "symptoms": ["Cough > 2 weeks", "Hemoptysis", "Evening rise of temperature", "Night sweats", "Weight loss"]
+    },
+    {
+      "code": "ED90",
+      "icd10": "B86",
+      "name": "Scabies",
+      "nepali": "लुतो (Scabies)",
+      "category": "Dermatology",
+      "triage_urgency": "low",
+      "symptoms": ["Nocturnal itching", "Finger web burrows", "Excoriations"]
+    },
+    {
+      "code": "MG45",
+      "icd10": "F41.1",
+      "name": "Generalized anxiety disorder",
+      "nepali": "चिन्ता / आत्तिने रोग",
+      "category": "Mental Health",
+      "triage_urgency": "medium",
+      "symptoms": ["Excessive worry", "Restlessness", "Palpitations", "Insomnia"]
+    },
+    {
+      "code": "5B52",
+      "icd10": "E03.9",
+      "name": "Hypothyroidism",
+      "nepali": "हाइपोथाइरोइडिजम",
+      "category": "Endocrine",
+      "triage_urgency": "low",
+      "symptoms": ["Weight gain", "Cold intolerance", "Dry skin", "Constipation", "Lethargy"]
+    }
+  ],
+  "medicines": [
+    {
+      "name": "Paracetamol",
+      "atc": "N02BE01",
+      "default_dosage": "500mg",
+      "default_frequency": "Every 6-8 hours PRN",
+      "default_duration": "3-5 days",
+      "route": "oral",
+      "category": "Analgesic / Antipyretic",
+      "nepali_usage": "ज्वरो र दुखाइको लागि",
+      "max_daily_dose": "4000mg/day (adults), 60mg/kg/day (children)"
+    },
+    {
+      "name": "Amoxicillin",
+      "atc": "J01CA04",
+      "default_dosage": "500mg",
+      "default_frequency": "Three times daily (TID)",
+      "default_duration": "5-7 days",
+      "route": "oral",
+      "category": "Antibiotic (Penicillin)",
+      "nepali_usage": "छाती र घाँटीको संक्रमणको लागि",
+      "warning": "Check for penicillin allergy."
+    },
+    {
+      "name": "Metformin",
+      "atc": "A10BA02",
+      "default_dosage": "500mg",
+      "default_frequency": "Twice daily with meals (BID)",
+      "default_duration": "Continuous / 30 days",
+      "route": "oral",
+      "category": "Antidiabetic (Biguanide)",
+      "nepali_usage": "चिनी रोग (सुगर) नियन्त्रणको लागि",
+      "warning": "Contraindicated in severe renal impairment (eGFR < 30)."
+    },
+    {
+      "name": "Amlodipine",
+      "atc": "C08CA01",
+      "default_dosage": "5mg",
+      "default_frequency": "Once daily morning (OD)",
+      "default_duration": "Continuous / 30 days",
+      "route": "oral",
+      "category": "Antihypertensive (CCB)",
+      "nepali_usage": "उच्च रक्तचाप नियन्त्रणको लागि",
+      "warning": "Monitor for peripheral pedal edema."
+    },
+    {
+      "name": "Enalapril",
+      "atc": "C09AA02",
+      "default_dosage": "5mg",
+      "default_frequency": "Once daily (OD)",
+      "default_duration": "Continuous / 30 days",
+      "route": "oral",
+      "category": "Antihypertensive (ACE Inhibitor)",
+      "nepali_usage": "उच्च रक्तचाप र मुटुको सुरक्षाको लागि",
+      "warning": "Risk of hyperkalemia when combined with Spironolactone."
+    },
+    {
+      "name": "Salbutamol Inhaler",
+      "atc": "R03AC02",
+      "default_dosage": "100mcg/puff",
+      "default_frequency": "2 puffs as needed (PRN)",
+      "default_duration": "As needed (PRN)",
+      "route": "inhalation",
+      "category": "Bronchodilator (SABA)",
+      "nepali_usage": "दमको बेला सास फेर्न सहज बनाउन (इन्हेलर)",
+      "warning": "For acute bronchospasm relief."
+    },
+    {
+      "name": "Budesonide Inhaler",
+      "atc": "R03BA02",
+      "default_dosage": "200mcg/puff",
+      "default_frequency": "1-2 puffs twice daily (BID)",
+      "default_duration": "Continuous / 30 days",
+      "route": "inhalation",
+      "category": "Inhaled Corticosteroid (ICS)",
+      "nepali_usage": "दम रोकथाम र नियन्त्रणको दैनिक इन्हेलर",
+      "warning": "Rinse mouth after inhalation to prevent oral candidiasis."
+    },
+    {
+      "name": "Omeprazole",
+      "atc": "A02BC01",
+      "default_dosage": "20mg",
+      "default_frequency": "Once daily before breakfast (OD AC)",
+      "default_duration": "14 days",
+      "route": "oral",
+      "category": "Proton Pump Inhibitor (PPI)",
+      "nepali_usage": "ग्यास्ट्रिक र पेट पोल्ने नियन्त्रणको लागि",
+      "warning": "Take 30 minutes before meal."
+    },
+    {
+      "name": "Pantoprazole",
+      "atc": "A02BC02",
+      "default_dosage": "40mg",
+      "default_frequency": "Once daily before breakfast (OD AC)",
+      "default_duration": "14 days",
+      "route": "oral",
+      "category": "Proton Pump Inhibitor (PPI)",
+      "nepali_usage": "ग्यास्ट्रिक र अल्सरको लागि",
+      "warning": "Take before meal."
+    },
+    {
+      "name": "Ciprofloxacin",
+      "atc": "J01MA02",
+      "default_dosage": "500mg",
+      "default_frequency": "Twice daily (BID)",
+      "default_duration": "5-7 days",
+      "route": "oral",
+      "category": "Fluoroquinolone Antibiotic",
+      "nepali_usage": "पिसाब संक्रमण तथा पखालाको लागि",
+      "warning": "Avoid in pregnancy and children."
+    },
+    {
+      "name": "Azithromycin",
+      "atc": "J01FA10",
+      "default_dosage": "500mg",
+      "default_frequency": "Once daily (OD)",
+      "default_duration": "3-5 days",
+      "route": "oral",
+      "category": "Macrolide Antibiotic",
+      "nepali_usage": "घाँटी र छाती संक्रमणको लागि",
+      "warning": "Take 1 hour before or 2 hours after meals."
+    },
+    {
+      "name": "Doxycycline",
+      "atc": "J01AA02",
+      "default_dosage": "100mg",
+      "default_frequency": "Twice daily with full glass of water (BID)",
+      "default_duration": "7 days",
+      "route": "oral",
+      "category": "Tetracycline Antibiotic",
+      "nepali_usage": "स्क्रब टाइफस तथा अन्य संक्रमणको औषधि",
+      "warning": "Avoid in children < 8 yrs and pregnancy. Stay upright for 30 mins."
+    },
+    {
+      "name": "Oral Rehydration Salts (ORS)",
+      "atc": "A07CA01",
+      "default_dosage": "1 Sachet in 1 Litre boiled/clean water",
+      "default_frequency": "Sip after each loose stool",
+      "default_duration": "Until diarrhea resolves",
+      "route": "oral",
+      "category": "Electrolyte Solution",
+      "nepali_usage": "जीवनजल / जलवियोजन रोकथामको लागि",
+      "warning": "Do not mix with milk or juice."
+    },
+    {
+      "name": "Cetirizine",
+      "atc": "R06AE07",
+      "default_dosage": "10mg",
+      "default_frequency": "Once daily at bedtime (OD HS)",
+      "default_duration": "5-7 days",
+      "route": "oral",
+      "category": "Antihistamine",
+      "nepali_usage": "एलर्जी, चिलाउने र रुघाखोकीको लागि",
+      "warning": "May cause mild sedation."
+    },
+    {
+      "name": "Albendazole",
+      "atc": "P02CA03",
+      "default_dosage": "400mg chewable",
+      "default_frequency": "Single dose at night",
+      "default_duration": "1 day (Repeat in 2 weeks if needed)",
+      "route": "oral",
+      "category": "Anthelmintic",
+      "nepali_usage": "जुकाको औषधि",
+      "warning": "Chew thoroughly with fatty meal."
+    },
+    {
+      "name": "Metronidazole",
+      "atc": "J01XD01",
+      "default_dosage": "400mg",
+      "default_frequency": "Three times daily after food (TID PC)",
+      "default_duration": "5-7 days",
+      "route": "oral",
+      "category": "Antiprotozoal / Antibacterial",
+      "nepali_usage": "आउँ पर्ने र पेटको जुका/संक्रमणको लागि",
+      "warning": "Strictly avoid alcohol during and 48 hours post therapy."
+    },
+    {
+      "name": "Atorvastatin",
+      "atc": "C10AA05",
+      "default_dosage": "20mg",
+      "default_frequency": "Once daily at bedtime (OD HS)",
+      "default_duration": "Continuous / 30 days",
+      "route": "oral",
+      "category": "Lipid Lowering Agent (Statin)",
+      "nepali_usage": "रगतमा कोलेस्ट्रोल नियन्त्रणको लागि",
+      "warning": "Report unexplained muscle tenderness."
+    },
+    {
+      "name": "Losartan",
+      "atc": "C09CA01",
+      "default_dosage": "50mg",
+      "default_frequency": "Once daily morning (OD)",
+      "default_duration": "Continuous / 30 days",
+      "route": "oral",
+      "category": "Antihypertensive (ARB)",
+      "nepali_usage": "उच्च रक्तचाप नियन्त्रणको औषधि",
+      "warning": "Monitor renal function."
+    },
+    {
+      "name": "Ibuprofen",
+      "atc": "M01AE01",
+      "default_dosage": "400mg",
+      "default_frequency": "Twice daily after food (BID PC)",
+      "default_duration": "3-5 days",
+      "route": "oral",
+      "category": "NSAID",
+      "nepali_usage": "दुखाइ र सुन्निएको कम गर्ने औषधि",
+      "warning": "Take after meals. Contraindicated in active peptic ulcer."
+    },
+    {
+      "name": "Iron + Folic Acid",
+      "atc": "B03AA07",
+      "default_dosage": "1 tablet (60mg elemental iron + 400mcg folate)",
+      "default_frequency": "Once daily (OD)",
+      "default_duration": "90-100 days",
+      "route": "oral",
+      "category": "Antianemic",
+      "nepali_usage": "आइरन चक्की (रगत बढाउने औषधि)",
+      "warning": "Take on empty stomach or with Vitamin C. Dark stools are normal."
+    },
+    {
+      "name": "Zinc Sulphate",
+      "atc": "A12CB01",
+      "default_dosage": "20mg dispersible",
+      "default_frequency": "Once daily dissolved in water (OD)",
+      "default_duration": "14 days",
+      "route": "oral",
+      "category": "Mineral supplement",
+      "nepali_usage": "झाडापखालामा बच्चाहरूको लागि जिंक चक्की",
+      "warning": "Complete 14-day course even if diarrhoea stops."
+    }
+  ]
+}

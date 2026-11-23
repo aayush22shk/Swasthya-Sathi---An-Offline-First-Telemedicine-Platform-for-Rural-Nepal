@@ -11,6 +11,8 @@ import 'prescription_detail_screen.dart';
 import 'diagnosis_detail_screen.dart';
 import '../../../cds/clinical_briefing_card.dart';
 import '../../../cds/longitudinal_summary_service.dart';
+import '../../../cds/medical_terminology_service.dart';
+import '../../../services/offline_sync_queue_service.dart';
 
 /// Doctor-side persistent chat screen with Prescription & Diagnosis attachments.
 class DoctorChatScreen extends StatefulWidget {
@@ -64,6 +66,8 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
   @override
   void initState() {
     super.initState();
+    MedicalTerminologyService().initialize();
+    OfflineSyncQueueService().loadQueue();
     _initChat();
   }
 
@@ -184,7 +188,20 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
         });
       }
     } catch (_) {
-      // Keep optimistic message shown; will reconcile on next poll
+      // Offline fallback: enqueue to sync queue
+      await OfflineSyncQueueService().enqueue(
+        endpoint: '/api/v1/conversations/$_convId/messages',
+        payload: {'message_content': text},
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Offline: message queued for auto-sync.'),
+            duration: Duration(seconds: 2),
+            backgroundColor: Color(0xFF64748B),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSending = false);
     }
@@ -222,7 +239,8 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
               title: const Text('Prescription', style: TextStyle(fontWeight: FontWeight.bold)),
               subtitle: const Text('Issue medicines for the patient'),
               onTap: () {
-                Navigator.pop(ctx);
+                // ignore: use_build_context_synchronously
+                                       Navigator.pop(ctx);
                 _showPrescriptionDialog();
               },
             ),
@@ -238,7 +256,8 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
               title: const Text('Diagnosis Results', style: TextStyle(fontWeight: FontWeight.bold)),
               subtitle: const Text('Share clinical findings & treatment plan'),
               onTap: () {
-                Navigator.pop(ctx);
+                // ignore: use_build_context_synchronously
+                                       Navigator.pop(ctx);
                 _showDiagnosisDialog();
               },
             ),
@@ -296,7 +315,40 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _inputField(titleCtrl, 'Prescription Title (optional)', maxLines: 1),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Nepal Essential Medicines (Quick Fill):',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF059669)),
+                      ),
+                      const SizedBox(height: 6),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (final med in MedicalTerminologyService().medicines.take(8))
+                              Padding(
+                                padding: const EdgeInsets.only(right: 6, bottom: 8),
+                                child: ActionChip(
+                                  avatar: const Icon(Icons.medication_outlined, size: 14, color: Color(0xFF059669)),
+                                  label: Text(med.name, style: const TextStyle(fontSize: 12)),
+                                  backgroundColor: const Color(0xFFF0FDF4),
+                                  side: BorderSide(color: const Color(0xFF059669).withValues(alpha: 0.3)),
+                                  onPressed: () {
+                                    setS(() {
+                                      final target = medicines.last;
+                                      target['name']!.text = med.name;
+                                      target['dosage']!.text = med.defaultDosage;
+                                      target['freq']!.text = med.defaultFrequency;
+                                      target['duration']!.text = med.defaultDuration;
+                                      target['instructions']!.text = '${med.nepaliUsage} (${med.category})';
+                                    });
+                                  },
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       ...medicines.asMap().entries.map((e) {
                         final i = e.key;
                         final m = e.value;
@@ -344,7 +396,8 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
                                     );
 
                                     if (mounted) {
-                                      Navigator.pop(ctx);
+                                      // ignore: use_build_context_synchronously
+                                       Navigator.pop(ctx);
                                       await _fetchMessages();
                                       _loadClinicalSummary();
                                       _scrollToBottom();
@@ -466,6 +519,43 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
                   child: Column(
                     children: [
                       _inputField(titleCtrl, 'Diagnosis Title *', maxLines: 1),
+                      const SizedBox(height: 10),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Common Conditions (ICD-11 Quick Select):',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (final cond in MedicalTerminologyService().conditions.take(8))
+                              Padding(
+                                padding: const EdgeInsets.only(right: 6, bottom: 8),
+                                child: ActionChip(
+                                  avatar: const Icon(Icons.local_hospital_outlined, size: 14, color: Color(0xFFD97706)),
+                                  label: Text('${cond.name} (${cond.code})', style: const TextStyle(fontSize: 12)),
+                                  backgroundColor: const Color(0xFFFEF3C7),
+                                  side: BorderSide(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+                                  onPressed: () {
+                                    setS(() {
+                                      titleCtrl.text = '${cond.name} [${cond.code}]';
+                                      if (descCtrl.text.isEmpty) {
+                                        descCtrl.text = '${cond.nepali} (${cond.category})';
+                                      }
+                                      if (findingsCtrl.text.isEmpty && cond.symptoms.isNotEmpty) {
+                                        findingsCtrl.text = 'Key features: ${cond.symptoms.join(", ")}';
+                                      }
+                                    });
+                                  },
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       _inputField(descCtrl, 'Description / Summary', maxLines: 3),
                       const SizedBox(height: 12),
@@ -503,7 +593,8 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
                                       additionalNotes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
                                     );
                                     if (mounted) {
-                                      Navigator.pop(ctx);
+                                      // ignore: use_build_context_synchronously
+                                       Navigator.pop(ctx);
                                       await _fetchMessages();
                                       _loadClinicalSummary();
                                       _scrollToBottom();

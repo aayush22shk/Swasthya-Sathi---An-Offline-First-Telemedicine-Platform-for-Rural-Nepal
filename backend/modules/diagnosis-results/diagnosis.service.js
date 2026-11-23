@@ -37,6 +37,21 @@ const createDiagnosis = async (conversationId, doctorUserId, {
       [conversationId, doctorUserId, title, dx.id]
     );
 
+    // Audit log
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, metadata)
+       VALUES ($1, 'RECORD_DIAGNOSIS', 'diagnosis_results', $2, $3)`,
+      [
+        doctorUserId,
+        dx.id,
+        JSON.stringify({
+          conversation_id: conversationId,
+          patient_id: conv.patient_id,
+          title: dx.title,
+        }),
+      ]
+    );
+
     // Notify patient
     await client.query(
       `INSERT INTO notifications (user_id, type, title, message)
