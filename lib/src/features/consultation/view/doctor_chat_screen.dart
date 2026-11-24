@@ -9,6 +9,9 @@ import '../../../services/conv_prescription_service.dart';
 import '../../../services/diagnosis_service.dart';
 import 'prescription_detail_screen.dart';
 import 'diagnosis_detail_screen.dart';
+import '../../skin_analysis/view/skin_analysis_upload_screen.dart';
+import '../../skin_analysis/view/skin_analysis_result_screen.dart';
+import '../../../models/skin_analysis_model.dart';
 import '../../../cds/clinical_briefing_card.dart';
 import '../../../cds/longitudinal_summary_service.dart';
 import '../../../cds/medical_terminology_service.dart';
@@ -259,6 +262,28 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
                 // ignore: use_build_context_synchronously
                                        Navigator.pop(ctx);
                 _showDiagnosisDialog();
+              },
+            ),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D9488).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.document_scanner_rounded, color: Color(0xFF0D9488)),
+              ),
+              title: const Text('Skin Analysis Screenings', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('Review patient-shared skin photographs & findings'),
+              onTap: () {
+                // ignore: use_build_context_synchronously
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SkinAnalysisUploadScreen(),
+                  ),
+                );
               },
             ),
             const SizedBox(height: 16),
@@ -882,28 +907,111 @@ class _TextBubble extends StatelessWidget {
                       style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
                     ),
                   ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isMe ? const Color(0xFF0072FF) : Colors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(16),
-                      topRight: const Radius.circular(16),
-                      bottomLeft: isMe ? const Radius.circular(16) : Radius.zero,
-                      bottomRight: isMe ? Radius.zero : const Radius.circular(16),
+                if (msg.messageContent?.contains('[AI Skin Screening]') == true) ...[
+                  Container(
+                    width: 270,
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFF0D9488).withValues(alpha: 0.3)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF0D9488).withValues(alpha: 0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
-                    boxShadow: const [
-                      BoxShadow(color: Color(0x08000000), blurRadius: 6, offset: Offset(0, 2)),
-                    ],
-                  ),
-                  child: Text(
-                    msg.messageContent ?? '',
-                    style: TextStyle(
-                      fontSize: 14, height: 1.4,
-                      color: isMe ? Colors.white : const Color(0xFF1E293B),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0D9488).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.document_scanner_rounded, size: 16, color: Color(0xFF0D9488)),
+                            ),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'AI Skin Screening Report',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0F766E),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          msg.messageContent ?? '',
+                          style: const TextStyle(fontSize: 12.5, color: Color(0xFF1E293B), height: 1.3),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0D9488),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            icon: const Icon(Icons.visibility_outlined, size: 14),
+                            label: const Text('Review Analysis & Notes', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                            onPressed: () {
+                              final parts = msg.messageContent?.split('shared my ');
+                              final cond = (parts != null && parts.length > 1)
+                                  ? parts[1].split(' image').first
+                                  : 'Skin Condition';
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => SkinAnalysisResultScreen(
+                                    analysis: SkinAnalysisModel.fromCondition(cond),
+                                    isDoctorView: true,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
+                ] else ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isMe ? const Color(0xFF0072FF) : Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(16),
+                        topRight: const Radius.circular(16),
+                        bottomLeft: isMe ? const Radius.circular(16) : Radius.zero,
+                        bottomRight: isMe ? Radius.zero : const Radius.circular(16),
+                      ),
+                      boxShadow: const [
+                        BoxShadow(color: Color(0x08000000), blurRadius: 6, offset: Offset(0, 2)),
+                      ],
+                    ),
+                    child: Text(
+                      msg.messageContent ?? '',
+                      style: TextStyle(
+                        fontSize: 14, height: 1.4,
+                        color: isMe ? Colors.white : const Color(0xFF1E293B),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 4),
                 Text(msg.formattedTime, style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
               ],

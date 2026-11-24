@@ -20,6 +20,7 @@ import '../../doctor_profile/view/doctor_detail_screen.dart';
 import '../../patient_profile/view/view_profile_screen.dart';
 import '../../urgent_care/urgentCare.dart';
 import '../../health/view/health_dashboard_screen.dart';
+import '../../skin_analysis/view/skin_analysis_upload_screen.dart';
 
 class PatientDashboardView extends StatefulWidget {
   const PatientDashboardView({super.key});
@@ -209,6 +210,14 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: _buildAiDoctorBanner(context),
+            ),
+
+            const SizedBox(height: 14.0),
+
+            // 🔬 AI SKIN DISEASE SCREENING (100% OFFLINE)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: _buildSkinAnalysisBanner(context),
             ),
 
             const SizedBox(height: 20.0),
@@ -682,6 +691,152 @@ class _PatientDashboardViewState extends State<PatientDashboardView> {
                             context,
                             MaterialPageRoute(
                               builder: (_) => const AiDoctorChatScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔬 SWASTHYA SATHI AI SKIN SCREENING BANNER
+  Widget _buildSkinAnalysisBanner(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0F766E), Color(0xFF0D9488), Color(0xFF14B8A6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20.0),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0D9488).withValues(alpha: 0.35),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -10,
+            bottom: -10,
+            child: Icon(
+              Icons.healing_rounded,
+              size: 110,
+              color: Colors.white.withValues(alpha: 0.12),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(18.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.document_scanner_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Text(
+                                'AI Skin Disease Screening',
+                                style: TextStyle(
+                                  fontSize: 16.0,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.8),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  '100% Offline',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Text(
+                            'Local MobileNetV3 AI · No Internet Required',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: Color(0xFFCCFBF1),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12.0),
+                const Text(
+                  'Photograph or upload visible skin rashes (Eczema, Ringworm, Psoriasis, Scabies, etc.) for instant offline AI condition analysis.',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: Color(0xFFF0FDFA),
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 14.0),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFF0F766E),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.photo_camera_rounded, size: 18),
+                        label: const Text(
+                          'Scan / Check Skin Photo',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SkinAnalysisUploadScreen(),
                             ),
                           );
                         },

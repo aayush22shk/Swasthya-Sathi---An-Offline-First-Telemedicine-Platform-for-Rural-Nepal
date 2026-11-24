@@ -1,0 +1,11 @@
+acne
+eczema
+psoriasis
+tinea_ringworm
+vitiligo
+impetigo
+scabies
+rosacea
+herpes_zoster
+urticaria
+normal_or_non_skin

@@ -29,6 +29,9 @@ const diagnosisRoutes        = require('./modules/diagnosis-results/diagnosis.ro
 // HL7 FHIR v4 Interoperability
 const fhirRoutes             = require('./modules/fhir/fhir.routes');
 
+// AI Skin Disease Detection
+const skinAnalysisRoutes     = require('./modules/skin-analysis/skin-analysis.routes');
+
 // Health Analysis System (Phase 1)
 const healthRoutes         = require('./modules/health/health.routes');
 const healthAnalysisRoutes = require('./modules/health-analysis/analysis.routes');
@@ -214,6 +217,9 @@ app.use('/api/v1/diagnosis-results',  diagnosisRoutes);
 
 // 18. HL7 FHIR v4 Interoperability
 app.use('/api/v1/fhir',               fhirRoutes);
+
+// 19. AI Skin Disease Detection
+app.use('/api/v1/skin-analyses',      skinAnalysisRoutes);
 
 // ---------------------------------------------------------------------------
 // 404 handler

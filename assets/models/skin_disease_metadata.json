@@ -1,0 +1,47 @@
+{
+  "num_classes": 11,
+  "classes": [
+    "acne",
+    "eczema",
+    "psoriasis",
+    "tinea_ringworm",
+    "vitiligo",
+    "impetigo",
+    "scabies",
+    "rosacea",
+    "herpes_zoster",
+    "urticaria",
+    "normal_or_non_skin"
+  ],
+  "display_names": {
+    "acne": "Acne Vulgaris",
+    "eczema": "Eczema (Atopic / Contact Dermatitis)",
+    "psoriasis": "Psoriasis (Plaque)",
+    "tinea_ringworm": "Tinea / Ringworm (Fungal)",
+    "vitiligo": "Vitiligo (Depigmentation)",
+    "impetigo": "Impetigo (Bacterial Crust)",
+    "scabies": "Scabies (Mite Infestation)",
+    "rosacea": "Rosacea (Facial Erythema)",
+    "herpes_zoster": "Herpes Zoster (Shingles)",
+    "urticaria": "Urticaria (Hives / Wheals)",
+    "normal_or_non_skin": "Normal Skin / Non-Skin Object"
+  },
+  "input_size": [
+    1,
+    3,
+    224,
+    224
+  ],
+  "mean": [
+    0.485,
+    0.456,
+    0.406
+  ],
+  "std": [
+    0.229,
+    0.224,
+    0.225
+  ],
+  "model_architecture": "MobileNetV3-Large",
+  "export_timestamp": "2026-11-24 16:17:58"
+}
