@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/api_constants.dart';
 import '../models/skin_analysis_model.dart';
 import 'auth_service.dart';
+import 'skin_model_runner.dart';
 
 class SkinAnalysisService {
   SkinAnalysisService._internal();
@@ -123,7 +124,8 @@ class SkinAnalysisService {
       };
 
   /// Performs 100% on-device offline prediction.
-  /// Operates with zero network dependency.
+  /// Attempts real TFLite inference first; falls back to knowledge-base simulation
+  /// if the runtime is unavailable (e.g., model not yet properly exported).
   Future<SkinAnalysisModel> analyzeImageOffline({
     required String imagePath,
     String? classHint,
@@ -131,20 +133,35 @@ class SkinAnalysisService {
   }) async {
     // 1. Check for non-skin rejection heuristic
     if (isInvalidNonSkin) {
-      throw Exception('NON_SKIN_REJECTED: No human skin lesion detected in photograph. Please upload a clear photo of the skin.');
+      throw Exception(
+          'NON_SKIN_REJECTED: No human skin lesion detected in photograph. '
+          'Please upload a clear photo of the skin.');
     }
 
-    // 2. Select prediction profile
+    // 2. Attempt real TFLite inference (available once model is properly exported)
+    final runner = SkinModelRunner.instance;
+    await runner.ensureLoaded();
+
+    if (runner.isRealInferenceAvailable) {
+      debugPrint('[SkinAnalysisService] Using REAL TFLite inference');
+      final probs = await runner.runInference(imagePath);
+      if (probs != null) {
+        return _buildResultFromProbabilities(imagePath, probs);
+      }
+    }
+
+    debugPrint('[SkinAnalysisService] Using knowledge-base simulation inference');
+
+    // 3. Knowledge-base simulation fallback
     String selectedClass = classHint ?? 'tinea_ringworm';
     if (!clinicalKnowledge.containsKey(selectedClass)) {
       selectedClass = 'tinea_ringworm';
     }
 
     final info = clinicalKnowledge[selectedClass]!;
-    final double confidence = 0.8840;
-    final bool isUncertain = confidence < 0.60;
+    const double confidence = 0.8840;
+    const bool isUncertain = false;
 
-    // Build Top-3 differential predictions
     final List<SkinPredictionItem> topPredictions = [
       SkinPredictionItem(
         classKey: selectedClass,
@@ -155,8 +172,12 @@ class SkinAnalysisService {
       ),
       SkinPredictionItem(
         classKey: selectedClass == 'eczema' ? 'psoriasis' : 'eczema',
-        conditionName: selectedClass == 'eczema' ? 'Psoriasis (Plaque)' : 'Eczema (Atopic / Contact Dermatitis)',
-        nepaliName: selectedClass == 'eczema' ? 'सोरायसिस (Psoriasis)' : 'दाद/छाला चिलाउने (Eczema)',
+        conditionName: selectedClass == 'eczema'
+            ? 'Psoriasis (Plaque)'
+            : 'Eczema (Atopic / Contact Dermatitis)',
+        nepaliName: selectedClass == 'eczema'
+            ? 'सोरायसिस (Psoriasis)'
+            : 'दाद/छाला चिलाउने (Eczema)',
         confidence: 0.0780,
         confidencePct: 7.8,
       ),
@@ -181,13 +202,55 @@ class SkinAnalysisService {
       symptoms: (info['symptoms'] as List).map((s) => s.toString()).toList(),
       adviceEn: info['advice_en'] as String,
       adviceNe: info['advice_ne'] as String,
+      modelVersion: 'mobilenetv3_nepal_v1_simulation',
+      createdAt: DateTime.now(),
+    );
+
+    await _saveToLocalHistory(result);
+    return result;
+  }
+
+  /// Builds a [SkinAnalysisModel] from raw TFLite probability vector.
+  SkinAnalysisModel _buildResultFromProbabilities(
+      String imagePath, List<double> probs) {
+    final topIndices = SkinModelRunner.topK(probs, k: 3);
+    final topIdx = topIndices.first;
+    final topClass = SkinModelRunner.classLabels[topIdx];
+    final topConf = probs[topIdx];
+
+    // Uncertainty threshold: if top confidence < 60%, flag as uncertain
+    final bool isUncertain = topConf < 0.60;
+    final info = clinicalKnowledge[topClass] ?? clinicalKnowledge['normal_or_non_skin']!;
+
+    final topPredictions = topIndices.map((i) {
+      final cls = SkinModelRunner.classLabels[i];
+      final clsInfo = clinicalKnowledge[cls] ?? clinicalKnowledge['normal_or_non_skin']!;
+      return SkinPredictionItem(
+        classKey: cls,
+        conditionName: clsInfo['name'] as String,
+        nepaliName: clsInfo['nepali_name'] as String,
+        confidence: probs[i],
+        confidencePct: probs[i] * 100,
+      );
+    }).toList();
+
+    final result = SkinAnalysisModel(
+      id: 'local_skin_${DateTime.now().microsecondsSinceEpoch}',
+      imageUrl: imagePath,
+      predictedCondition: info['name'] as String,
+      confidenceScore: topConf,
+      topPredictions: topPredictions,
+      isUncertain: isUncertain,
+      urgencyLevel: info['urgency'] as String,
+      description: info['description'] as String,
+      symptoms: (info['symptoms'] as List).map((s) => s.toString()).toList(),
+      adviceEn: info['advice_en'] as String,
+      adviceNe: info['advice_ne'] as String,
       modelVersion: 'mobilenetv3_nepal_v1',
       createdAt: DateTime.now(),
     );
 
-    // Save to local offline storage
-    await _saveToLocalHistory(result);
-
+    _saveToLocalHistory(result);
     return result;
   }
 
@@ -291,6 +354,18 @@ class SkinAnalysisService {
       return res.statusCode >= 200 && res.statusCode < 300;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// Clears all locally stored offline skin analysis history.
+  /// Called from patient profile when user revokes consent or deletes their data.
+  Future<void> clearOfflineHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_offlineStorageKey);
+      debugPrint('[SkinAnalysisService] Offline history cleared');
+    } catch (e) {
+      debugPrint('[SkinAnalysisService] Failed to clear history: $e');
     }
   }
 

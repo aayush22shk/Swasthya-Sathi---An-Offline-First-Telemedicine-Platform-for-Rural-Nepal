@@ -1,6 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../models/skin_analysis_model.dart';
 import '../../../services/skin_analysis_service.dart';
+import '../../../services/skin_model_runner.dart';
+import '../../../services/photo_quality_validator.dart';
+import 'skin_analysis_consent_dialog.dart';
 import 'skin_analysis_result_screen.dart';
 
 class SkinAnalysisUploadScreen extends StatefulWidget {
@@ -12,9 +17,11 @@ class SkinAnalysisUploadScreen extends StatefulWidget {
 
 class _SkinAnalysisUploadScreenState extends State<SkinAnalysisUploadScreen> {
   final SkinAnalysisService _service = SkinAnalysisService();
+  final ImagePicker _picker = ImagePicker();
 
   String? _selectedImagePath;
   String? _selectedClassHint;
+  bool _isRealPhoto = false; // true when user picks a real file (not a preset)
   bool _isAnalyzing = false;
   List<SkinAnalysisModel> _recentHistory = [];
   bool _isLoadingHistory = true;
@@ -23,6 +30,8 @@ class _SkinAnalysisUploadScreenState extends State<SkinAnalysisUploadScreen> {
   void initState() {
     super.initState();
     _loadHistory();
+    // Warm up TFLite model in background while user selects image
+    SkinModelRunner.instance.ensureLoaded();
   }
 
   Future<void> _loadHistory() async {
@@ -36,11 +45,36 @@ class _SkinAnalysisUploadScreenState extends State<SkinAnalysisUploadScreen> {
     }
   }
 
-  void _selectPresetSample(String classKey, String displayName) {
+  void _selectPresetSample(String classKey) {
     setState(() {
       _selectedImagePath = 'sample_$classKey.jpg';
       _selectedClassHint = classKey;
+      _isRealPhoto = false;
     });
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? file = await _picker.pickImage(
+        source: source,
+        imageQuality: 90,
+        maxWidth: 1920,
+        maxHeight: 1920,
+      );
+      if (file != null && mounted) {
+        setState(() {
+          _selectedImagePath = file.path;
+          _selectedClassHint = null;
+          _isRealPhoto = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not access ${source == ImageSource.camera ? "camera" : "gallery"}: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _runAnalysis() async {
@@ -51,12 +85,45 @@ class _SkinAnalysisUploadScreenState extends State<SkinAnalysisUploadScreen> {
       return;
     }
 
+    // 1. Consent gate — shown once; persisted in SharedPreferences
+    final consented = await SkinAnalysisConsentDialog.requestConsentIfNeeded(context);
+    if (!consented || !mounted) return;
+
+    // 2. Photo quality gate — only for real photos (not demo presets)
+    if (_isRealPhoto) {
+      final qr = await PhotoQualityValidator.validate(_selectedImagePath!);
+      if (!qr.isPassed) {
+        if (!mounted) return;
+        await showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Row(
+              children: [
+                Icon(Icons.image_not_supported_rounded, color: Color(0xFFDC2626)),
+                SizedBox(width: 8),
+                Text('Photo Quality Issue', style: TextStyle(fontSize: 16)),
+              ],
+            ),
+            content: Text(
+              qr.failureReason ?? 'Photo quality is insufficient.',
+              style: const TextStyle(fontSize: 14),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Retake Photo'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() => _isAnalyzing = true);
 
     try {
-      // Simulate on-device inference latency (~500ms for realistic user feedback)
-      await Future.delayed(const Duration(milliseconds: 600));
-
       final result = await _service.analyzeImageOffline(
         imagePath: _selectedImagePath!,
         classHint: _selectedClassHint,
@@ -185,97 +252,140 @@ class _SkinAnalysisUploadScreenState extends State<SkinAnalysisUploadScreen> {
             ),
             const SizedBox(height: 10),
 
-            Container(
-              width: double.infinity,
-              height: 220,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: _selectedImagePath != null ? const Color(0xFF0072FF) : const Color(0xFFE2E8F0),
-                  width: _selectedImagePath != null ? 2 : 1,
+            GestureDetector(
+              onTap: _selectedImagePath == null ? () => _showImageSourceSheet() : null,
+              child: Container(
+                width: double.infinity,
+                height: 220,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: _selectedImagePath != null ? const Color(0xFF0072FF) : const Color(0xFFE2E8F0),
+                    width: _selectedImagePath != null ? 2 : 1,
+                  ),
                 ),
-              ),
-              child: _selectedImagePath == null
-                  ? Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
-                            shape: BoxShape.circle,
+                child: _selectedImagePath == null
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF1F5F9),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.add_a_photo_outlined, size: 36, color: Color(0xFF64748B)),
                           ),
-                          child: const Icon(Icons.add_a_photo_outlined, size: 36, color: Color(0xFF64748B)),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Take a photo or choose from samples',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Ensure well-lit, close-up photograph of the rash or lesion',
-                          style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                        ),
-                      ],
-                    )
-                  : Stack(
-                      children: [
-                        Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 110,
-                                height: 110,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEFF6FF),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: const Color(0xFF93C5FD)),
-                                ),
-                                child: const Icon(Icons.image_rounded, size: 50, color: Color(0xFF0072FF)),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                _selectedImagePath!,
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-                              ),
-                              if (_selectedClassHint != null)
-                                Text(
-                                  'Selected: ${_selectedClassHint!}',
-                                  style: const TextStyle(fontSize: 12, color: Color(0xFF0072FF)),
-                                ),
-                            ],
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Tap to capture or upload a photo',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
                           ),
-                        ),
-                        Positioned(
-                          top: 10,
-                          right: 10,
-                          child: GestureDetector(
-                            onTap: () => setState(() {
-                              _selectedImagePath = null;
-                              _selectedClassHint = null;
-                            }),
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFEF4444),
-                                shape: BoxShape.circle,
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Or choose a sample condition below for demo',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                          ),
+                        ],
+                      )
+                    : Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: _isRealPhoto
+                                ? Image.file(
+                                    File(_selectedImagePath!),
+                                    width: double.infinity,
+                                    height: 220,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => _placeholderImage(),
+                                  )
+                                : _placeholderImage(),
+                          ),
+                          Positioned(
+                            top: 10,
+                            right: 10,
+                            child: GestureDetector(
+                              onTap: () => setState(() {
+                                _selectedImagePath = null;
+                                _selectedClassHint = null;
+                                _isRealPhoto = false;
+                              }),
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFEF4444),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.close, color: Colors.white, size: 16),
                               ),
-                              child: const Icon(Icons.close, color: Colors.white, size: 16),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
+                          if (!_isRealPhoto)
+                            Positioned(
+                              bottom: 10,
+                              left: 0,
+                              right: 0,
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.55),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    _selectedImagePath ?? '',
+                                    style: const TextStyle(fontSize: 11, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+              ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            // 3. Clinical Sample Presets (For testing and demoing across conditions)
+            // 3. Camera / Gallery action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF0072FF),
+                      side: const BorderSide(color: Color(0xFF0072FF)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                    label: const Text('Camera', style: TextStyle(fontSize: 13)),
+                    onPressed: () => _pickImage(ImageSource.camera),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF059669),
+                      side: const BorderSide(color: Color(0xFF059669)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    icon: const Icon(Icons.photo_library_outlined, size: 18),
+                    label: const Text('Gallery', style: TextStyle(fontSize: 13)),
+                    onPressed: () => _pickImage(ImageSource.gallery),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // 4. Clinical Sample Presets (For testing and demoing)
             const Text(
-              'Select Clinical Condition to Test:',
+              'Or select a demo condition:',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
             ),
             const SizedBox(height: 8),
@@ -300,7 +410,7 @@ class _SkinAnalysisUploadScreenState extends State<SkinAnalysisUploadScreen> {
 
             const SizedBox(height: 24),
 
-            // 4. Action Button
+            // 5. Analyze Button
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -328,7 +438,7 @@ class _SkinAnalysisUploadScreenState extends State<SkinAnalysisUploadScreen> {
 
             const SizedBox(height: 32),
 
-            // 5. Previous Screening History
+            // 6. Previous Screening History
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -414,6 +524,80 @@ class _SkinAnalysisUploadScreenState extends State<SkinAnalysisUploadScreen> {
     );
   }
 
+  Widget _placeholderImage() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 110,
+            height: 110,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF93C5FD)),
+            ),
+            child: const Icon(Icons.image_rounded, size: 50, color: Color(0xFF0072FF)),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _selectedClassHint != null ? 'Demo: $_selectedClassHint' : _selectedImagePath ?? '',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Select Image Source',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFEFF6FF),
+                  child: Icon(Icons.camera_alt_outlined, color: Color(0xFF0072FF)),
+                ),
+                title: const Text('Take a Photo'),
+                subtitle: const Text('Use your camera to photograph the skin'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFF0FDF4),
+                  child: Icon(Icons.photo_library_outlined, color: Color(0xFF059669)),
+                ),
+                title: const Text('Choose from Gallery'),
+                subtitle: const Text('Select an existing photo from your device'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _presetChip(String classKey, String label, Color color) {
     final isSelected = _selectedClassHint == classKey;
     return Padding(
@@ -426,7 +610,7 @@ class _SkinAnalysisUploadScreenState extends State<SkinAnalysisUploadScreen> {
         side: BorderSide(color: color.withValues(alpha: 0.3)),
         onSelected: (selected) {
           if (selected) {
-            _selectPresetSample(classKey, label);
+            _selectPresetSample(classKey);
           }
         },
       ),
