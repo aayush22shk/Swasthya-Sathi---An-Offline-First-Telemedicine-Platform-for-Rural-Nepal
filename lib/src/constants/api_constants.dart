@@ -14,7 +14,14 @@ class ApiConstants {
     if (kIsWeb) {
       return 'http://localhost:5000/api/v1';
     }
-    return 'http://10.10.9.4:5000/api/v1';
+    return 'http://192.168.1.82:5000/api/v1';
+  }
+
+  /// Python MobileNetV3 inference server (port 5001).
+  /// Provides real on-device skin disease predictions when on the same LAN.
+  static String get inferenceUrl {
+    if (kIsWeb) return 'http://localhost:5001';
+    return 'http://192.168.1.82:5001';
   }
 
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -121,5 +128,5 @@ class ApiConstants {
   static String diagnosesByPatient(String patientId) =>
       '$baseUrl/diagnosis-results/patient/$patientId';
   static String get socketUrl =>
-      kIsWeb ? 'http://localhost:5000' : 'http://10.10.9.4:5000';
+      kIsWeb ? 'http://localhost:5000' : 'http://192.168.1.82:5000';
 }

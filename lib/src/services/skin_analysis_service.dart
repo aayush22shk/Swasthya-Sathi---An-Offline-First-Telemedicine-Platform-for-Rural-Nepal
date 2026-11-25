@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -123,44 +124,80 @@ class SkinAnalysisService {
         'Authorization': 'Bearer $token',
       };
 
-  /// Performs 100% on-device offline prediction.
-  /// Attempts real TFLite inference first; falls back to knowledge-base simulation
-  /// if the runtime is unavailable (e.g., model not yet properly exported).
+  /// Performs skin disease analysis.
+  ///
+  /// Priority order:
+  ///   1. Real Python MobileNetV3 inference server (LAN, port 5001)
+  ///   2. TFLite runtime (not yet available; model needs re-export)
+  ///   3. Knowledge-base simulation fallback (demo/offline only)
   Future<SkinAnalysisModel> analyzeImageOffline({
     required String imagePath,
     String? classHint,
     bool isInvalidNonSkin = false,
   }) async {
-    // 1. Check for non-skin rejection heuristic
+    // 1. Non-skin rejection (preset demo chip)
     if (isInvalidNonSkin) {
       throw Exception(
           'NON_SKIN_REJECTED: No human skin lesion detected in photograph. '
           'Please upload a clear photo of the skin.');
     }
 
-    // 2. Attempt real TFLite inference (available once model is properly exported)
+    // 2. Try Python inference server (real ML — when phone is on same LAN as PC)
+    final isRealPhoto = classHint == null && !imagePath.startsWith('sample_');
+    if (isRealPhoto) {
+      try {
+        final serverResult = await _analyzeViaInferenceServer(imagePath);
+        if (serverResult != null) return serverResult;
+      } catch (e) {
+        debugPrint('[SkinAnalysisService] Inference server unreachable: $e');
+      }
+    }
+
+    // 3. Try TFLite runtime (graceful fallback — currently disabled until model re-export)
     final runner = SkinModelRunner.instance;
     await runner.ensureLoaded();
-
     if (runner.isRealInferenceAvailable) {
       debugPrint('[SkinAnalysisService] Using REAL TFLite inference');
       final probs = await runner.runInference(imagePath);
-      if (probs != null) {
-        return _buildResultFromProbabilities(imagePath, probs);
-      }
+      if (probs != null) return _buildResultFromProbabilities(imagePath, probs);
     }
 
     debugPrint('[SkinAnalysisService] Using knowledge-base simulation inference');
 
-    // 3. Knowledge-base simulation fallback
-    String selectedClass = classHint ?? 'tinea_ringworm';
-    if (!clinicalKnowledge.containsKey(selectedClass)) {
-      selectedClass = 'tinea_ringworm';
+    // 4. Simulation fallback (demo presets / full offline)
+    // When a real photo is uploaded without a reachable inference server, tell
+    // the user we cannot make a reliable prediction rather than guessing ringworm.
+    if (isRealPhoto) {
+      const String selectedClass = 'normal_or_non_skin';
+      final info = clinicalKnowledge[selectedClass]!;
+      final result = SkinAnalysisModel(
+        id: 'local_skin_${DateTime.now().microsecondsSinceEpoch}',
+        imageUrl: imagePath,
+        predictedCondition: 'Unable to Analyze',
+        confidenceScore: 0.0,
+        topPredictions: [],
+        isUncertain: true,
+        uncertaintyReason:
+            'AI analysis requires a connection to the local inference server. '
+            'Please ensure you are on the same Wi-Fi network as the PC running the backend.',
+        urgencyLevel: 'low',
+        description: info['description'] as String,
+        symptoms: (info['symptoms'] as List).map((s) => s.toString()).toList(),
+        adviceEn: 'Please connect to the same Wi-Fi network as your clinic PC and try again.',
+        adviceNe: 'कृपया क्लिनिकको Wi-Fi नेटवर्कमा जडान गरेर पुनः प्रयास गर्नुहोस्।',
+        modelVersion: 'mobilenetv3_nepal_v1',
+        createdAt: DateTime.now(),
+      );
+      await _saveToLocalHistory(result);
+      return result;
     }
+
+    // Demo preset fallback (for UI demo chips & unit tests)
+    String selectedClass = classHint ?? 'normal_or_non_skin';
+    if (!clinicalKnowledge.containsKey(selectedClass)) selectedClass = 'normal_or_non_skin';
 
     final info = clinicalKnowledge[selectedClass]!;
     const double confidence = 0.8840;
-    const bool isUncertain = false;
 
     final List<SkinPredictionItem> topPredictions = [
       SkinPredictionItem(
@@ -196,13 +233,85 @@ class SkinAnalysisService {
       predictedCondition: info['name'] as String,
       confidenceScore: confidence,
       topPredictions: topPredictions,
-      isUncertain: isUncertain,
+      isUncertain: false,
       urgencyLevel: info['urgency'] as String,
       description: info['description'] as String,
       symptoms: (info['symptoms'] as List).map((s) => s.toString()).toList(),
       adviceEn: info['advice_en'] as String,
       adviceNe: info['advice_ne'] as String,
       modelVersion: 'mobilenetv3_nepal_v1_simulation',
+      createdAt: DateTime.now(),
+    );
+
+    await _saveToLocalHistory(result);
+    return result;
+  }
+
+  /// Sends image to Python Flask inference server and returns a real prediction.
+  /// Returns null if the server is unreachable or returns an error.
+  Future<SkinAnalysisModel?> _analyzeViaInferenceServer(String imagePath) async {
+    final file = File(imagePath);
+    if (!file.existsSync()) return null;
+
+    final uri = Uri.parse('${ApiConstants.inferenceUrl}/predict');
+    debugPrint('[SkinAnalysisService] Calling inference server: $uri');
+
+    final request = http.MultipartRequest('POST', uri)
+      ..files.add(await http.MultipartFile.fromPath('image', imagePath));
+
+    final streamedResponse =
+        await request.send().timeout(const Duration(seconds: 20));
+    final responseBody = await streamedResponse.stream.bytesToString();
+
+    if (streamedResponse.statusCode != 200) {
+      debugPrint(
+          '[SkinAnalysisService] Inference server error ${streamedResponse.statusCode}: $responseBody');
+      return null;
+    }
+
+    final data = json.decode(responseBody) as Map<String, dynamic>;
+    debugPrint('[SkinAnalysisService] REAL inference: ${data['predicted_class']} '
+        '(${((data['confidence'] as num) * 100).toStringAsFixed(1)}%) '
+        'latency=${data['inference_ms']}ms');
+
+    final topRaw = data['top_predictions'] as List<dynamic>;
+    final topPredictions = topRaw.map((p) {
+      final m = p as Map<String, dynamic>;
+      return SkinPredictionItem(
+        classKey: m['class_key'] as String,
+        conditionName: m['display_name'] as String,
+        nepaliName: m['nepali_name'] as String,
+        confidence: (m['confidence'] as num).toDouble(),
+        confidencePct: (m['confidence_pct'] as num).toDouble(),
+      );
+    }).toList();
+
+    final predictedClass = data['predicted_class'] as String;
+    final confidence = (data['confidence'] as num).toDouble();
+    final isUncertain = data['is_uncertain'] as bool;
+    final isNonSkin = data['is_non_skin'] as bool? ?? false;
+    final info =
+        clinicalKnowledge[predictedClass] ?? clinicalKnowledge['normal_or_non_skin']!;
+
+    final result = SkinAnalysisModel(
+      id: 'local_skin_${DateTime.now().microsecondsSinceEpoch}',
+      imageUrl: imagePath,
+      predictedCondition: info['name'] as String,
+      confidenceScore: confidence,
+      topPredictions: topPredictions,
+      isUncertain: isUncertain || isNonSkin,
+      uncertaintyReason: isNonSkin
+          ? 'No skin tissue detected in photograph. Please retake the photo.'
+          : isUncertain
+              ? 'Model confidence is below threshold. Result may not be reliable.'
+              : null,
+      urgencyLevel: info['urgency'] as String,
+      description: info['description'] as String,
+      symptoms:
+          (info['symptoms'] as List).map((s) => s.toString()).toList(),
+      adviceEn: info['advice_en'] as String,
+      adviceNe: info['advice_ne'] as String,
+      modelVersion: data['model_version'] as String? ?? 'mobilenetv3_nepal_v1',
       createdAt: DateTime.now(),
     );
 
@@ -218,7 +327,6 @@ class SkinAnalysisService {
     final topClass = SkinModelRunner.classLabels[topIdx];
     final topConf = probs[topIdx];
 
-    // Uncertainty threshold: if top confidence < 60%, flag as uncertain
     final bool isUncertain = topConf < 0.60;
     final info = clinicalKnowledge[topClass] ?? clinicalKnowledge['normal_or_non_skin']!;
 
