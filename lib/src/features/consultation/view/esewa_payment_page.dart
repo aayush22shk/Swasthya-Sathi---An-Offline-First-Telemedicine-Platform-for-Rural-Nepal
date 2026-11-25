@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:esewa_flutter/esewa_flutter.dart';
 import '../../../services/appointment_payment_service.dart';
+import '../../../services/conversation_service.dart';
 import 'chat_screen.dart';
 
 /// eSewa payment page shown before a user can chat with the doctor.
@@ -182,6 +183,15 @@ class _EsewaPaymentPageState extends State<EsewaPaymentPage> {
       );
     }
 
+    // ── Step 4: Get or create a conversation for the chat ────────────────────
+    String? conversationId;
+    try {
+      final conv = await ConversationService().getOrCreate(doctorId: widget.doctorId);
+      conversationId = conv.id;
+    } catch (_) {
+      // If conversation creation fails we still open the screen and let it retry
+    }
+
     // Navigate to chat
     await Future.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
@@ -191,6 +201,9 @@ class _EsewaPaymentPageState extends State<EsewaPaymentPage> {
           doctorName: widget.doctorName,
           specialty: widget.specialty,
           avatarUrl: widget.avatarUrl,
+          conversationId: conversationId,
+          // Fallback: if getOrCreate failed, let ChatScreen auto-create via doctorEntityId
+          doctorEntityId: conversationId == null ? widget.doctorId : null,
           consultationId: result.consultationId,
         ),
       ),

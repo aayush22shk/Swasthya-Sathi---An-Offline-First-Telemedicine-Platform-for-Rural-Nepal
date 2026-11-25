@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
+import '../constants/api_constants.dart';
 import 'auth_service.dart';
 import '../models/conversation_model.dart';
 import '../models/message_model.dart';
@@ -10,8 +10,7 @@ class ConversationService {
   static final ConversationService _instance = ConversationService._internal();
   factory ConversationService() => _instance;
 
-  static String get _base =>
-      kIsWeb ? 'http://localhost:5000/api/v1' : 'http://10.10.9.4:5000/api/v1';
+  static String get _base => ApiConstants.baseUrl;
 
   Map<String, String> _headers(String token) => {
         'Content-Type': 'application/json',

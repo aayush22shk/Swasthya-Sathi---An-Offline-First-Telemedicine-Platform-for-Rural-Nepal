@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../models/appointment_model.dart';
 import '../../../services/appointment_service.dart';
+import '../../../services/conversation_service.dart';
+import '../../consultation/view/chat_screen.dart';
 
 /// Shows the authenticated patient's full appointment history,
 /// pulling live status from the backend/database.
@@ -194,11 +196,60 @@ class _AppointmentCard extends StatelessWidget {
 
   const _AppointmentCard({required this.appointment});
 
+  Future<void> _openChat(BuildContext context) async {
+    final a = appointment;
+    // Show a brief loading indicator
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Row(children: [
+          SizedBox(width: 18, height: 18,
+              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+          SizedBox(width: 12),
+          Text('Opening consultation chat...'),
+        ]),
+        duration: Duration(seconds: 5),
+        backgroundColor: Color(0xFF0072FF),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    try {
+      final conv = await ConversationService().getOrCreate(doctorId: a.doctorId);
+      messenger.hideCurrentSnackBar();
+      if (!context.mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            doctorName: a.doctorName,
+            specialty: a.specialty,
+            avatarUrl: a.doctorPhotoUrl,
+            conversationId: conv.id,
+          ),
+        ),
+      );
+    } catch (e) {
+      messenger.hideCurrentSnackBar();
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Could not open chat: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final a = appointment;
     final statusColor = Color(a.status.colorValue);
     final modeIcon = _modeIcon(a.mode);
+    final canChat = a.status == AppointmentStatus.confirmed ||
+        a.status == AppointmentStatus.completed;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -336,6 +387,31 @@ class _AppointmentCard extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ],
+
+            // Open/Continue Chat button for confirmed & completed appointments
+            if (canChat) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 42,
+                child: ElevatedButton.icon(
+                  onPressed: () => _openChat(context),
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
+                  label: Text(
+                    a.status == AppointmentStatus.confirmed
+                        ? 'Start Consultation Chat'
+                        : 'View Consultation Chat',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0072FF),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
               ),
             ],
           ],
